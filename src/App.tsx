@@ -241,6 +241,8 @@ const runBackgroundAnalysis = async (
     ) {
       errorMessage =
         "Quota Gemini épuisé : Vérifiez votre plafond de dépenses dans la console Google Cloud.";
+    } else if (error.message?.includes("Failed to fetch") || error.message?.includes("NetworkError")) {
+      errorMessage = "Erreur de connexion : Impossible de joindre le service d'analyse IA. Veuillez vérifier votre réseau.";
     } else if (error.message?.includes("Limite de requêtes")) {
       errorMessage = "Trop de requêtes : Veuillez patienter une minute.";
     } else if (error.message?.includes("spending cap")) {

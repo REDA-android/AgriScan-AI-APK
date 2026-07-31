@@ -43,17 +43,18 @@ export function clearAIInstance() {
 }
 
 const getApiUrl = () => {
-  // Always use the relative proxy if on the same origin.
-  // On native mobile (Capacitor), try to use the configured VITE_API_URL or a dynamic fallback.
-  const baseUrl =
-    import.meta.env.VITE_API_URL ||
-    (Capacitor.isNativePlatform()
-      ? "https://ais-dev-db2hwm5y7qoqk2tm5yejt5-52640628825.europe-west2.run.app"
-      : window.location.origin);
-  
-  // If the origin is 'capacitor://localhost' or 'http://localhost', we MUST have a VITE_API_URL
-  // otherwise we fallback to the dev server URL.
-  return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+  // Always prefer configured VITE_API_URL if provided
+  if (import.meta.env.VITE_API_URL) {
+    const url = import.meta.env.VITE_API_URL;
+    return url.endsWith("/") ? url.slice(0, -1) : url;
+  }
+  // In standard web environments, use window.location.origin
+  if (typeof window !== "undefined" && window.location && window.location.origin) {
+    if (!window.location.origin.includes("capacitor://")) {
+      return window.location.origin;
+    }
+  }
+  return "";
 };
 
 export async function chatWithGemini(
@@ -78,51 +79,64 @@ export async function chatWithGemini(
   const useProxy = !userKey;
 
   if (useProxy) {
-    try {
-      const endpoint = `${apiUrl}/api/gemini/chat`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, history, userKey }),
-      });
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const endpoint = attempt === 0 && apiUrl ? `${apiUrl}/api/gemini/chat` : `/api/gemini/chat`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, history, userKey }),
+        });
 
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error(
-          "[Chat] Unexpected response from server:",
-          text.substring(0, 100),
-        );
-        throw new Error(
-          "Le serveur de chat a renvoyé une réponse HTML au lieu de JSON. Si vous êtes sur Vercel, assurez-vous que les fonctions du serveur API sont déployées, ou configurez votre propre Clé API Gemini dans les Paramètres pour utiliser le mode direct.",
-        );
-      }
-
-      const data = await response.json();
-      if (!response.ok) {
-        if (
-          data.error &&
-          (data.error.includes("Clé API") ||
-            data.error.includes("Quota") ||
-            data.error.includes("Limite"))
-        ) {
-          throw new Error(data.error);
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await response.text();
+          console.error(
+            "[Chat] Unexpected response from server:",
+            text.substring(0, 100),
+          );
+          throw new Error(
+            "Le serveur de chat a renvoyé une réponse HTML au lieu de JSON. Veuillez recharger la page ou réessayer.",
+          );
         }
-        throw new Error(
-          data.error || "Erreur lors de la communication de chat",
-        );
-      }
 
-      return data.text || "Erreur lors de la génération de la réponse.";
-    } catch (e: any) {
+        const data = await response.json();
+        if (!response.ok) {
+          if (
+            data.error &&
+            (data.error.includes("Clé API") ||
+              data.error.includes("Quota") ||
+              data.error.includes("Limite"))
+          ) {
+            throw new Error(data.error);
+          }
+          throw new Error(
+            data.error || "Erreur lors de la communication de chat",
+          );
+        }
+
+        return data.text || "Erreur lors de la génération de la réponse.";
+      } catch (e: any) {
+        lastError = e;
+        if (e.message?.includes("Clé API") || e.message?.includes("Quota")) {
+          throw e;
+        }
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        }
+      }
+    }
+
+    if (lastError) {
       if (
         userKey &&
-        e.message &&
-        (e.message.includes("Network") || e.message.includes("Failed to fetch"))
+        lastError.message &&
+        (lastError.message.includes("Network") || lastError.message.includes("Failed to fetch"))
       ) {
-        // Fallback to direct client mode if proxy fails (useful for local development or specific network issues)
+        // Fallback to direct client mode
       } else {
-        throw e;
+        throw lastError;
       }
     }
   }
@@ -153,63 +167,85 @@ export async function analyzePlantImage(
     "";
   const apiUrl = getApiUrl();
 
-  // If the user has an API key, we call Gemini directly from the client.
-  // This is highly recommended for static hostings (like Vercel) where the backend is not
-  // deployed or runs in serverless, avoiding proxy issues.
+  const cleanBase64 = (str: string) => {
+    if (!str) return "";
+    return str.replace(/^data:image\/\w+;base64,/, "");
+  };
+
+  const cleanedImages = images.map((img) => ({
+    base64Image: cleanBase64(img.base64Image),
+    mimeType: img.mimeType || "image/jpeg",
+  }));
+
   const useProxy = !userKey;
 
   if (useProxy) {
-    try {
-      const endpoint = `${apiUrl}/api/gemini/analyze`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images, userKey }),
-      });
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const endpoint = attempt === 0 && apiUrl ? `${apiUrl}/api/gemini/analyze` : `/api/gemini/analyze`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ images: cleanedImages, userKey }),
+        });
 
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error(
-          "[Analyze] Unexpected response from server:",
-          text.substring(0, 100),
-        );
-        throw new Error(
-          "Le serveur d'analyse a renvoyé une réponse HTML au lieu de JSON. Si vous êtes sur Vercel, assurez-vous que les fonctions du serveur API sont déployées, ou configurez votre propre Clé API Gemini dans les Paramètres pour utiliser le mode direct.",
-        );
-      }
-
-      const data = await response.json();
-      if (!response.ok) {
-        if (
-          data.error &&
-          (data.error.includes("Clé API") ||
-            data.error.includes("Quota") ||
-            data.error.includes("Limite"))
-        ) {
-          throw new Error(data.error);
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await response.text();
+          console.error(
+            "[Analyze] Unexpected response from server:",
+            text.substring(0, 100),
+          );
+          throw new Error(
+            "Le serveur d'analyse a renvoyé une réponse invalide (non-JSON). Veuillez recharger la page ou réessayer.",
+          );
         }
-        throw new Error(data.error || "Erreur lors de l'analyse");
-      }
 
-      return data;
-    } catch (e: any) {
+        const data = await response.json();
+        if (!response.ok) {
+          if (
+            data.error &&
+            (data.error.includes("Clé API") ||
+              data.error.includes("Quota") ||
+              data.error.includes("Limite"))
+          ) {
+            throw new Error(data.error);
+          }
+          throw new Error(data.error || "Erreur lors de l'analyse");
+        }
+
+        return data;
+      } catch (e: any) {
+        lastError = e;
+        if (e.message?.includes("Clé API") || e.message?.includes("Quota")) {
+          throw e;
+        }
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        }
+      }
+    }
+
+    if (lastError) {
       if (
         userKey &&
-        e.message &&
-        (e.message.includes("Network") || e.message.includes("Failed to fetch"))
+        lastError.message &&
+        (lastError.message.includes("Network") || lastError.message.includes("Failed to fetch"))
       ) {
-        // Fallback to direct client
+        // Fallback to direct client below if userKey exists
+      } else if (lastError.name === "TypeError" && (lastError.message?.includes("Failed to fetch") || lastError.message?.includes("NetworkError"))) {
+        throw new Error("Erreur de connexion : Réseau ou serveur d'analyse IA temporairement indisponible.");
       } else {
-        throw e;
+        throw lastError;
       }
     }
   }
 
-  // Mode APK - Client Direct Analyse
+  // Mode APK / Client Direct Analyse
   const ai = new GoogleGenAI({ apiKey: userKey });
 
-  const parts: any[] = images.slice(0, 6).map((img: any) => ({
+  const parts: any[] = cleanedImages.slice(0, 6).map((img: any) => ({
     inlineData: {
       data: img.base64Image,
       mimeType: img.mimeType || "image/jpeg",

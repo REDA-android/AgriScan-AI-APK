@@ -135,6 +135,10 @@ app.post(
 app.post(["/api/gemini/analyze", "/gemini/analyze"], async (req, res) => {
   const { images, userKey } = req.body;
 
+  if (!images || !Array.isArray(images) || images.length === 0) {
+    return res.status(400).json({ error: "Aucune image fournie pour l'analyse." });
+  }
+
   const apiKey = userKey || process.env.GEMINI_API_KEY;
   if (
     !apiKey ||
@@ -152,9 +156,14 @@ app.post(["/api/gemini/analyze", "/gemini/analyze"], async (req, res) => {
   try {
     const ai = getAI(apiKey);
 
+    const cleanBase64 = (str: string) => {
+      if (!str) return "";
+      return str.replace(/^data:image\/\w+;base64,/, "");
+    };
+
     const parts: any[] = images.slice(0, 6).map((img: any) => ({
       inlineData: {
-        data: img.base64Image,
+        data: cleanBase64(img.base64Image),
         mimeType: img.mimeType || "image/jpeg",
       },
     }));
