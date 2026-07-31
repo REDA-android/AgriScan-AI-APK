@@ -188,6 +188,9 @@ app.post(["/api/gemini/analyze", "/gemini/analyze"], async (req, res) => {
           model: "gemini-2.5-flash",
           contents: [{ role: "user", parts: parts }],
           config: {
+            thinkingConfig: {
+              thinkingBudget: 0,
+            },
             responseMimeType: "application/json",
             responseSchema: {
               type: Type.OBJECT,

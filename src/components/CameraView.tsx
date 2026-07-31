@@ -492,7 +492,7 @@ export default function CameraView({
         // Process sequentially to avoid memory crashes on mobile
         for (const file of selectedFiles) {
           try {
-            const { dataUrl, blob } = await compressImage(file, 1600, 1600, 0.85);
+            const { dataUrl, blob } = await compressImage(file, 1024, 1024, 0.75);
             newFiles.push({ file, preview: dataUrl, blob });
           } catch (compressError) {
             console.error("Compression failed for file", file.name, compressError);

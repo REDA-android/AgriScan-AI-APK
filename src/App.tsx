@@ -145,7 +145,7 @@ import {
   CULTURES,
   MOROCCAN_REGIONS,
 } from "./constants";
-import { compressImage, dataUrlToBlob } from "./utils/imageUtils";
+import { compressImage, processImageFast, dataUrlToBlob } from "./utils/imageUtils";
 import {
   saveOfflineObservation,
   getOfflineObservations,
@@ -4046,60 +4046,62 @@ export default function App() {
     let tempThumbUrl = "";
 
     const isProcessed = input.length > 0 && "blob" in input[0];
+    const sourceItems: (File | Blob)[] = isProcessed
+      ? (input as ProcessedImage[]).map((p) => p.blob)
+      : (input as File[]);
 
-    if (isProcessed) {
-      const processed = input as ProcessedImage[];
+    try {
+      const fastResults = await Promise.all(
+        sourceItems.map((item) => processImageFast(item))
+      );
 
-      // 1.1 Create small thumbnail for Firestore (300px)
-      try {
-        const thumbRes = await compressImage(
-          new File([processed[0].blob], "thumb.jpg"),
-          300,
-          300,
-          0.5,
-        );
-        tempThumbUrl = thumbRes.dataUrl;
-      } catch (e) {
-        tempThumbUrl = processed[0].dataUrl;
-      }
-
-      // 1.2 Process all images for AI (768px) and Storage (1600px)
-      for (const res of processed) {
-        const file = new File([res.blob], "image.jpg", { type: res.mimeType });
-
-        // For AI (Small)
-        const aiRes = await compressImage(file, 768, 768, 0.7);
-        aiImages.push({
-          base64Image: aiRes.dataUrl.split(",")[1],
-          mimeType: res.mimeType,
-          dataUrl: aiRes.dataUrl,
-        });
-
-        // For Storage (High)
-        const storageRes = await compressImage(file, 1600, 1600, 0.8);
-        storageImages.push({ blob: storageRes.blob, mimeType: res.mimeType });
-      }
-    } else {
-      const files = input as File[];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-
-        // For AI (Small)
-        const aiRes = await compressImage(file, 768, 768, 0.7);
-        aiImages.push({
-          base64Image: aiRes.dataUrl.split(",")[1],
-          mimeType: file.type,
-          dataUrl: aiRes.dataUrl,
-        });
-
-        // For Storage (High)
-        const storageRes = await compressImage(file, 1600, 1600, 0.8);
-        storageImages.push({ blob: storageRes.blob, mimeType: file.type });
-
-        // Thumbnail (only for first)
+      for (let i = 0; i < fastResults.length; i++) {
+        const res = fastResults[i];
         if (i === 0) {
-          const thumbRes = await compressImage(file, 300, 300, 0.5);
-          tempThumbUrl = thumbRes.dataUrl;
+          tempThumbUrl = res.thumbDataUrl;
+        }
+        aiImages.push({
+          base64Image: res.aiBase64,
+          mimeType: res.mimeType,
+          dataUrl: res.aiDataUrl,
+        });
+        storageImages.push({
+          blob: res.storageBlob,
+          mimeType: res.mimeType,
+        });
+      }
+    } catch (procErr) {
+      console.warn("Fast processing failed, falling back to basic compress", procErr);
+      if (isProcessed) {
+        const processed = input as ProcessedImage[];
+        for (const res of processed) {
+          const file = new File([res.blob], "image.jpg", { type: res.mimeType });
+          const aiRes = await compressImage(file, 640, 640, 0.65);
+          aiImages.push({
+            base64Image: aiRes.dataUrl.split(",")[1],
+            mimeType: res.mimeType,
+            dataUrl: aiRes.dataUrl,
+          });
+          const storageRes = await compressImage(file, 1024, 1024, 0.75);
+          storageImages.push({ blob: storageRes.blob, mimeType: res.mimeType });
+        }
+        tempThumbUrl = processed[0]?.dataUrl || "";
+      } else {
+        const files = input as File[];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const aiRes = await compressImage(file, 640, 640, 0.65);
+          aiImages.push({
+            base64Image: aiRes.dataUrl.split(",")[1],
+            mimeType: file.type,
+            dataUrl: aiRes.dataUrl,
+          });
+          const storageRes = await compressImage(file, 1024, 1024, 0.75);
+          storageImages.push({ blob: storageRes.blob, mimeType: file.type });
+          if (i === 0) {
+            const thumbRes = await compressImage(file, 240, 240, 0.5);
+            tempThumbUrl = thumbRes.dataUrl;
+          }
         }
       }
     }
@@ -4534,23 +4536,21 @@ export default function App() {
       });
 
       const fetchImages = async () => {
-        const processedImages = [];
-        for (const url of obs.imageUrls || [obs.imageUrl]) {
-          const response = await fetch(url);
-          if (!response.ok)
-            throw new Error(`Erreur image: ${response.statusText}`);
-          const blob = await response.blob();
-
-          // Compress for AI (768px) to ensure reliability
-          const file = new File([blob], "image.jpg", { type: blob.type });
-          const aiRes = await compressImage(file, 768, 768, 0.7);
-
-          processedImages.push({
-            base64Image: aiRes.dataUrl.split(",")[1],
-            mimeType: blob.type,
-            dataUrl: aiRes.dataUrl,
-          });
-        }
+        const urls = obs.imageUrls || [obs.imageUrl];
+        const processedImages = await Promise.all(
+          urls.map(async (url) => {
+            const response = await fetch(url);
+            if (!response.ok)
+              throw new Error(`Erreur image: ${response.statusText}`);
+            const blob = await response.blob();
+            const fast = await processImageFast(blob);
+            return {
+              base64Image: fast.aiBase64,
+              mimeType: fast.mimeType,
+              dataUrl: fast.aiDataUrl,
+            };
+          })
+        );
         return processedImages;
       };
 
@@ -6837,21 +6837,7 @@ export default function App() {
         ]}
       />
       
-      {/* Offline Status Indicator - Floating above nav */}
-      <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-6 flex items-center gap-1.5 bg-[#0d120f] border border-white/10 rounded-full px-2 py-0.5 shadow-lg pointer-events-none z-40">
-        <div
-          className={`w-1.5 h-1.5 rounded-full ${isOnline ? (offlineObservations.length === 0 ? "bg-emerald-500" : "bg-amber-500 animate-pulse") : "bg-red-500"}`}
-        />
-        <span className="text-[7px] font-black uppercase tracking-wider text-slate-500">
-          {!isOnline
-            ? "Hors ligne"
-            : offlineObservations.length > 0
-              ? isSyncing
-                ? "Sync..."
-                : `${offlineObservations.length} en attente`
-              : "Synchronisé"}
-        </span>
-      </div>
+
 
       {/* Notifications UI */}
       {appNotifications.length > 0 && (
