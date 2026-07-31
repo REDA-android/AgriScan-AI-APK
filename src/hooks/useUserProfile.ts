@@ -1,0 +1,67 @@
+import { useState, useEffect } from 'react';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { UserProfile } from '../types';
+
+export const useUserProfile = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let unsubscribeProfile: (() => void) | undefined;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = undefined;
+      }
+
+      if (firebaseUser) {
+        // Listen for profile changes
+        unsubscribeProfile = onSnapshot(doc(db, 'users', firebaseUser.uid), 
+          async (snapshot) => {
+            if (snapshot.exists()) {
+              setProfile(snapshot.data() as UserProfile);
+              setLoading(false);
+            } else {
+              // Create default profile for new user
+              const isAdminEmail = firebaseUser.email === 'relkrouchni@gmail.com' || firebaseUser.email === 'elkrouchni@gmail.com';
+              const newProfile: UserProfile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || (firebaseUser.isAnonymous ? 'invite@local' : ''),
+                displayName: firebaseUser.displayName || (firebaseUser.isAnonymous ? 'Invité' : 'Utilisateur'),
+                role: isAdminEmail ? 'admin' : (firebaseUser.isAnonymous ? 'user' : 'viewer'),
+                accessStatus: (isAdminEmail || firebaseUser.isAnonymous) ? 'approved' : 'pending',
+                status: (isAdminEmail || firebaseUser.isAnonymous) ? 'approved' : 'pending',
+                createdAt: serverTimestamp(),
+              };
+              await setDoc(doc(db, 'users', firebaseUser.uid), newProfile);
+              setProfile(newProfile);
+              setLoading(false);
+            }
+          },
+          (err) => {
+            console.error("Error fetching user profile:", err);
+            setError(err.message);
+            setLoading(false);
+          }
+        );
+      } else {
+        setProfile(null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
+  }, []);
+
+  return { user, profile, loading, error };
+};

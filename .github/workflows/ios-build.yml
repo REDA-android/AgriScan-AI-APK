@@ -1,0 +1,61 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web Project
+        run: npm run build
+
+      - name: Add iOS Platform
+        run: npx cap add ios
+
+      - name: Inject Firebase Config (plist)
+        run: |
+          mkdir -p ios/App/App
+          echo "${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}" > ios/App/App/GoogleService-Info.plist
+        # Note: Vous devrez ajouter le contenu de votre fichier dans les Secrets GitHub sous le nom GOOGLE_SERVICE_INFO_PLIST
+
+      - name: Capacitor Sync
+        run: npx cap sync ios
+
+      - name: Build App (XCode)
+        run: |
+          xcodebuild -workspace ios/App/App.xcworkspace \
+                     -scheme App \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -derivedDataPath build \
+                     -archivePath build/App.xcarchive \
+                     archive \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO
+
+      - name: Export IPA (Simple for Sideloading)
+        run: |
+          mkdir -p build/Payload
+          cp -r build/App.xcarchive/Products/Applications/App.app build/Payload/
+          cd build && zip -r AgroScan.ipa Payload
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/AgroScan.ipa

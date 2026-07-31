@@ -1,0 +1,12 @@
+{
+  "name": "Remix AgriScan AI to APK",
+  "description": "An AI-powered tool for scanning crops, detecting diseases, and providing instant plant health diagnostics and agricultural insights.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

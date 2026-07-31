@@ -1,0 +1,429 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer components {
+  .btn-glass {
+    @apply relative overflow-hidden backdrop-blur-xl bg-white/[0.05] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-300 ease-out;
+  }
+  .btn-glass:hover {
+    @apply bg-white/[0.1] shadow-[0_12px_48px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] -translate-y-[2px] border-white/20;
+  }
+  .btn-glass:active {
+    @apply bg-white/[0.03] shadow-[0_4px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] translate-y-0 border-white/10;
+  }
+  
+  .btn-glass-primary {
+    @apply relative overflow-hidden backdrop-blur-xl bg-emerald-500/[0.15] border border-emerald-400/30 shadow-[0_8px_32px_rgba(16,185,129,0.3),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-300 ease-out text-emerald-300;
+  }
+  .btn-glass-primary:hover {
+    @apply bg-emerald-500/[0.25] shadow-[0_12px_48px_rgba(16,185,129,0.5),inset_0_1px_0_rgba(255,255,255,0.4),0_0_20px_rgba(16,185,129,0.2)] -translate-y-[2px] border-emerald-400/50 text-emerald-200;
+  }
+  .btn-glass-primary:active {
+    @apply bg-emerald-500/[0.1] shadow-[0_4px_16px_rgba(16,185,129,0.2),inset_0_1px_0_rgba(255,255,255,0.2)] translate-y-0 border-emerald-400/20 text-emerald-400;
+  }
+
+  /* Liquid Glass UI Component styles */
+  .liquid-glass-card {
+    background: rgba(255, 255, 255, 0.08); /* Sophisticated transluscent dark/glass look */
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  body.light-mode .liquid-glass-card {
+    background: rgba(255, 255, 255, 0.35) !important;
+    backdrop-filter: blur(16px) saturate(140%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .liquid-glass-interactive {
+    @apply transition-all duration-300 ease-out hover:scale-[1.01] active:scale-[0.99];
+  }
+
+  .webkit-backdrop-blur-xl {
+    -webkit-backdrop-filter: blur(24px);
+  }
+}
+
+body {
+  background-color: #111412;
+  color: #f8fafc; /* text-slate-50 */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.safe-area-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+
+.safe-area-bottom {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.safe-area-mt {
+  margin-top: env(safe-area-inset-top);
+}
+
+/* Custom Range Slider */
+input[type=range].slider-glass {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+  height: 24px;
+}
+
+input[type=range].slider-glass::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 20px;
+  width: 28px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 1);
+  cursor: pointer;
+  margin-top: -8px; /* For tracking */
+}
+
+input[type=range].slider-glass::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: var(--slider-bg, rgba(255, 255, 255, 0.1));
+  border-radius: 2px;
+}
+
+input[type=range].slider-glass:focus {
+  outline: none;
+}
+
+/* Light Mode Base */
+body.light-mode {
+  background-color: #f8fafc !important; /* Soft, clean slate-50 canvas */
+  color: #0f172a !important; /* Crisp slate-900 body text */
+}
+
+/* Base containers and cards in Light Mode */
+body.light-mode .bg-\[\#111412\],
+body.light-mode .bg-\[\#161c18\],
+body.light-mode .bg-\[\#0d120f\],
+body.light-mode .bg-\[\#121c15\],
+body.light-mode .bg-\[\#121914\],
+body.light-mode .bg-\[\#0a0f0c\],
+body.light-mode .bg-\[\#0a0d0b\],
+body.light-mode .bg-\[\#0d1610\],
+body.light-mode .bg-\[\#180a0a\],
+body.light-mode .bg-\[\#1d1b16\],
+body.light-mode .bg-\[\#141a16\],
+body.light-mode .bg-\[\#1a231d\],
+body.light-mode .bg-\[\#0a110c\],
+body.light-mode [class*="bg-[#161c18]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#0d120f]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#0a0f0c]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#121914]"]:not([class*="dark:"]),
+body.light-mode .bg-slate-900,
+body.light-mode .bg-slate-950,
+body.light-mode .bg-emerald-950,
+body.light-mode .btn-glass {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Sub-containers & inner cards in Light Mode */
+body.light-mode [class*="bg-[#161c18]"]:not([class*="dark:"]) [class*="bg-[#0d120f]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#161c18]"]:not([class*="dark:"]) [class*="bg-[#0a0f0c]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#0d120f]"]:not([class*="dark:"]) [class*="bg-[#0a0f0c]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#121914]"]:not([class*="dark:"]) [class*="bg-[#0d120f]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#121914]"]:not([class*="dark:"]) [class*="bg-[#0a0f0c]"]:not([class*="dark:"]) {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Semi-transparent dark overlay cards in Light Mode */
+body.light-mode .bg-black\/40,
+body.light-mode .bg-black\/50,
+body.light-mode .bg-black\/60,
+body.light-mode .bg-black\/70,
+body.light-mode .bg-black\/80 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Dark borders in Light Mode */
+body.light-mode .border-\[\#111412\],
+body.light-mode .border-\[\#121c15\],
+body.light-mode .border-slate-800,
+body.light-mode .border-slate-900,
+body.light-mode .border-white\/5,
+body.light-mode .border-white\/10,
+body.light-mode .border-white\/20,
+body.light-mode [class*="border-white\/"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* Light Mode Typography & High Contrast Text Overrides */
+body.light-mode .text-white,
+body.light-mode .text-slate-50,
+body.light-mode .text-slate-100,
+body.light-mode .text-slate-200,
+body.light-mode .text-slate-300,
+body.light-mode [class*="text-slate-100"],
+body.light-mode [class*="text-slate-200"],
+body.light-mode [class*="text-slate-300"] {
+  color: #0f172a !important; /* High contrast dark slate-900 */
+}
+
+body.light-mode .text-slate-400,
+body.light-mode [class*="text-slate-400"] {
+  color: #64748b !important; /* Slate-500 */
+}
+
+body.light-mode .text-slate-500,
+body.light-mode [class*="text-slate-500"] {
+  color: #475569 !important; /* Slate-600 */
+}
+
+body.light-mode .text-slate-600,
+body.light-mode [class*="text-slate-600"] {
+  color: #334155 !important; /* Slate-700 */
+}
+
+body.light-mode .text-emerald-300,
+body.light-mode .text-emerald-400,
+body.light-mode [class*="text-emerald-400"] {
+  color: #047857 !important; /* Emerald-700 for text accents */
+}
+
+body.light-mode .text-emerald-500,
+body.light-mode [class*="text-emerald-500"] {
+  color: #059669 !important; /* Emerald-600 */
+}
+
+body.light-mode .text-purple-300,
+body.light-mode .text-purple-400 {
+  color: #7e22ce !important;
+}
+
+body.light-mode .text-sky-300,
+body.light-mode .text-sky-400 {
+  color: #0369a1 !important;
+}
+
+body.light-mode .text-teal-300,
+body.light-mode .text-teal-400 {
+  color: #0f766e !important;
+}
+
+body.light-mode .text-blue-300,
+body.light-mode .text-blue-400 {
+  color: #1d4ed8 !important;
+}
+
+body.light-mode .text-amber-300,
+body.light-mode .text-amber-400 {
+  color: #b45309 !important;
+}
+
+body.light-mode .text-red-300,
+body.light-mode .text-red-400 {
+  color: #b91c1c !important;
+}
+
+/* Ensure text-white stays crisp bright white on filled buttons, badges, and active pills */
+body.light-mode .bg-emerald-500 .text-white,
+body.light-mode .bg-emerald-600 .text-white,
+body.light-mode .bg-emerald-700 .text-white,
+body.light-mode .bg-emerald-600,
+body.light-mode .bg-emerald-700,
+body.light-mode .bg-red-500 .text-white,
+body.light-mode .bg-red-600 .text-white,
+body.light-mode .bg-amber-500 .text-white,
+body.light-mode .bg-amber-600 .text-white,
+body.light-mode .bg-amber-600,
+body.light-mode .bg-blue-500 .text-white,
+body.light-mode .bg-blue-600 .text-white,
+body.light-mode .bg-rose-600 .text-white,
+body.light-mode .bg-purple-600 .text-white,
+body.light-mode .bg-slate-800 .text-white,
+body.light-mode .bg-slate-900 .text-white,
+body.light-mode .bg-black .text-white,
+body.light-mode [class*="from-emerald"] .text-white,
+body.light-mode .bg-gradient-to-br .text-white,
+body.light-mode button.bg-emerald-500,
+body.light-mode button.bg-emerald-600,
+body.light-mode button.bg-emerald-700,
+body.light-mode button.bg-red-500,
+body.light-mode button.bg-blue-500,
+body.light-mode .btn-glass-primary .text-white,
+body.light-mode .force-text-white {
+  color: #ffffff !important;
+}
+
+/* Badges & Alert Containers in Light Mode */
+body.light-mode .bg-emerald-500\/10,
+body.light-mode .bg-emerald-500\/20,
+body.light-mode .bg-emerald-950\/40,
+body.light-mode .bg-emerald-950\/30 {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+}
+
+body.light-mode .bg-amber-500\/10,
+body.light-mode .bg-amber-950\/30 {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+}
+
+body.light-mode .bg-red-500\/10 {
+  background-color: #fef2f2 !important;
+  border-color: #fecaca !important;
+}
+
+body.light-mode .bg-blue-500\/10 {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
+/* Light mode inputs, textareas & selects */
+body.light-mode input,
+body.light-mode textarea,
+body.light-mode select {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-mode input:focus,
+body.light-mode textarea:focus,
+body.light-mode select:focus {
+  border-color: #10b981 !important;
+}
+
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Primary Glass Buttons in Light Mode */
+body.light-mode .btn-glass-primary {
+  background-color: #059669 !important;
+  border-color: #047857 !important;
+  color: #ffffff !important;
+}
+
+body.light-mode .btn-glass-primary:hover {
+  background-color: #047857 !important;
+}
+
+/* Navigation bar in Light Mode */
+body.light-mode nav.fixed,
+body.light-mode .fixed.bottom-4,
+body.light-mode .fixed.bottom-\[calc\(5rem\+env\(safe-area-inset-bottom\)\)\] {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Scope Leaflet's z-index layers so they do not overlap high-level UI controls of the application */
+.leaflet-container {
+  z-index: 1 !important;
+}
+
+/* Leaflet Zoom Control Styling */
+.leaflet-touch .leaflet-control-zoom-in, 
+.leaflet-touch .leaflet-control-zoom-out {
+  background-color: #161c18 !important;
+  color: #10b981 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.light-mode .leaflet-touch .leaflet-control-zoom-in,
+body.light-mode .leaflet-touch .leaflet-control-zoom-out {
+  background-color: #ffffff !important;
+  color: #047857 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Navigation bar label styling (.liquid-tab-bar-item-label) */
+.liquid-tab-bar-item-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 4px;
+  display: block;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+@media (min-width: 640px) {
+  .liquid-tab-bar-item-label {
+    font-size: 11px;
+  }
+}
+
+body.light-mode .liquid-tab-bar-item-label {
+  color: #475569 !important;
+}
+
+body.light-mode button[class*="text-emerald"] .liquid-tab-bar-item-label,
+body.light-mode .liquid-tab-bar-active .liquid-tab-bar-item-label {
+  color: #047857 !important;
+  font-weight: 700;
+}
+
+body:not(.light-mode) .liquid-tab-bar-item-label {
+  color: #94a3b8;
+}
+
+body:not(.light-mode) button[class*="text-emerald"] .liquid-tab-bar-item-label,
+body:not(.light-mode) .liquid-tab-bar-active .liquid-tab-bar-item-label {
+  color: #34d399;
+  font-weight: 700;
+}
+
+/* Application Top Header Styling */
+header {
+  padding-top: max(1.25rem, env(safe-area-inset-top));
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+body.light-mode header {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode header h1 {
+  color: #0f172a !important;
+}
+
