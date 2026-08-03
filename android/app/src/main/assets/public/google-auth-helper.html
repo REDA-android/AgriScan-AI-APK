@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion Google - AgroScan IA</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0d120f;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .card {
+      background: rgba(22, 28, 24, 0.95);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+      border-radius: 32px;
+      padding: 2.5rem 2rem;
+      max-width: 440px;
+      width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-sizing: border-box;
+    }
+    .icon-container {
+      width: 64px;
+      height: 64px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem auto;
+    }
+    .spinner {
+      border: 3px solid rgba(16, 185, 129, 0.1);
+      border-left: 3px solid #10b981;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1.5rem auto;
+      display: none;
+    }
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin: 0 0 0.75rem 0;
+      letter-spacing: -0.025em;
+    }
+    .text-emerald {
+      color: #10b981;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 0.9rem;
+      margin: 0 0 1.5rem 0;
+      line-height: 1.5;
+    }
+    .btn-google {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: #ffffff;
+      color: #1e293b;
+      border: none;
+      width: 100%;
+      padding: 14px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .btn-google:hover {
+      background: #f8fafc;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+    .btn-google:active {
+      transform: translateY(1px);
+    }
+    .google-logo {
+      width: 20px;
+      height: 20px;
+    }
+    /* Fallback Area */
+    .fallback-area {
+      display: none;
+      margin-top: 1.5rem;
+      text-align: left;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 1.25rem;
+      border-radius: 16px;
+    }
+    .fallback-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .fallback-desc {
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      margin-bottom: 0.75rem;
+      line-height: 1.4;
+    }
+    .token-container {
+      display: flex;
+      gap: 8px;
+    }
+    .token-input {
+      flex: 1;
+      background: #0d120f;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #10b981;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      outline: none;
+    }
+    .btn-copy {
+      background: #10b981;
+      color: #0d120f;
+      border: none;
+      padding: 0 16px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-copy:hover {
+      background: #059669;
+      color: #ffffff;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="icon-box" class="icon-container">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <div id="spinner" class="spinner"></div>
+    
+    <h1 id="title">Connexion <span class="text-emerald">AgroScan IA</span></h1>
+    <p id="desc">Veuillez cliquer sur le bouton ci-dessous pour lancer l'authentification Google sécurisée.</p>
+    
+    <button id="btn-google" class="btn-google">
+      <img class="google-logo" src="https://www.google.com/favicon.ico" alt="Google">
+      <span id="btn-text">Se connecter avec Google</span>
+    </button>
+
+    <div id="fallback-area" class="fallback-area">
+      <div class="fallback-title" id="fallback-title">🔑 Code de Connexion</div>
+      <div class="fallback-desc" id="fallback-desc">La redirection automatique a été bloquée par votre navigateur. Copiez ce code et collez-le dans l'application :</div>
+      <div class="token-container">
+        <input type="text" id="token-input" class="token-input" readonly value="">
+        <button id="btn-copy" class="btn-copy">Copier</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const lang = urlParams.get('lang') || 'fr';
+    const isArabic = lang === 'ar';
+    const isEnglish = lang === 'en';
+
+    // UI elements
+    const titleEl = document.getElementById('title');
+    const descEl = document.getElementById('desc');
+    const btnGoogle = document.getElementById('btn-google');
+    const btnText = document.getElementById('btn-text');
+    const spinner = document.getElementById('spinner');
+    const iconBox = document.getElementById('icon-box');
+    const fallbackArea = document.getElementById('fallback-area');
+    const fallbackTitle = document.getElementById('fallback-title');
+    const fallbackDesc = document.getElementById('fallback-desc');
+    const tokenInput = document.getElementById('token-input');
+    const btnCopy = document.getElementById('btn-copy');
+
+    // Translate UI
+    if (isArabic) {
+      titleEl.innerHTML = 'تسجيل الدخول <span class="text-emerald">AgroScan IA</span>';
+      descEl.textContent = 'يرجى النقر فوق الزر أدناه لبدء مصادقة Google الآمنة.';
+      btnText.textContent = 'المتابعة باستخدام Google';
+      fallbackTitle.textContent = '🔑 رمز الدخول الآمن';
+      fallbackDesc.textContent = 'تم حظر النقل التلقائي من متصفحك. انسخ هذا الرمز والصقه في التطبيق:';
+      btnCopy.textContent = 'نسخ';
+    } else if (isEnglish) {
+      titleEl.innerHTML = 'Connect to <span class="text-emerald">AgroScan AI</span>';
+      descEl.textContent = 'Please click the button below to launch the secure Google authentication.';
+      btnText.textContent = 'Continue with Google';
+      fallbackTitle.textContent = '🔑 Secure Access Code';
+      fallbackDesc.textContent = 'Automatic redirection was blocked by your browser. Copy this code and paste it into the app:';
+      btnCopy.textContent = 'Copy';
+    }
+
+    try {
+      const configStr = urlParams.get('config');
+      if (!configStr) {
+        throw new Error("Configuration Firebase manquante / Missing Firebase Config");
+      }
+
+      const firebaseConfig = JSON.parse(decodeURIComponent(configStr));
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+
+      const doSignIn = async () => {
+        // Show loading state
+        btnGoogle.style.display = 'none';
+        iconBox.style.display = 'none';
+        spinner.style.display = 'block';
+        
+        if (isArabic) {
+          descEl.textContent = "جاري الاتصال بـ Google... يرجى إكمال المصادقة.";
+        } else if (isEnglish) {
+          descEl.textContent = "Connecting to Google... Please complete authentication.";
+        } else {
+          descEl.textContent = "Connexion à Google en cours... Veuillez compléter l'authentification.";
+        }
+
+        try {
+          const result = await signInWithPopup(auth, provider);
+          
+          // Get correct Google OAuth Credential (idToken & accessToken)
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          const googleIdToken = credential?.idToken || null;
+          const googleAccessToken = credential?.accessToken || null;
+          const firebaseIdToken = await result.user.getIdToken(true);
+          const displayToken = googleIdToken || googleAccessToken || firebaseIdToken;
+          
+          // Try to send via postMessage to parent
+          let sentSuccessfully = false;
+          if (window.opener) {
+            try {
+              window.opener.postMessage({
+                type: 'GOOGLE_CREDENTIAL_SUCCESS',
+                idToken: googleIdToken,
+                accessToken: googleAccessToken,
+                firebaseIdToken: firebaseIdToken,
+                email: result.user.email
+              }, window.location.origin);
+              sentSuccessfully = true;
+            } catch (err) {
+              console.warn("PostMessage failed, falling back to manual copy paste", err);
+            }
+          }
+
+          if (sentSuccessfully) {
+            spinner.style.display = 'none';
+            iconBox.style.display = 'flex';
+            
+            if (isArabic) {
+              titleEl.innerHTML = '<span class="text-emerald">تم تسجيل الدخول بنجاح !</span>';
+              descEl.textContent = "جاري إغلاق هذه النافذة والعودة إلى التطبيق...";
+            } else if (isEnglish) {
+              titleEl.innerHTML = '<span class="text-emerald">Login Successful!</span>';
+              descEl.textContent = "Closing this window and returning to the application...";
+            } else {
+              titleEl.innerHTML = '<span class="text-emerald">Connexion réussie !</span>';
+              descEl.textContent = "Fermeture de cette fenêtre et retour à l'application...";
+            }
+            
+            setTimeout(() => {
+              window.close();
+            }, 500);
+          } else {
+            // If window.opener is null or postMessage failed, show manual copy paste
+            spinner.style.display = 'none';
+            iconBox.style.display = 'flex';
+            
+            if (isArabic) {
+              titleEl.innerHTML = '<span class="text-emerald">تمت المصادقة بنجاح</span>';
+              descEl.textContent = "يرجى نسخ الرمز أدناه يدويًا لتسجيل الدخول.";
+            } else if (isEnglish) {
+              titleEl.innerHTML = '<span class="text-emerald">Authenticated Successfully</span>';
+              descEl.textContent = "Please copy the access code below manually to log in.";
+            } else {
+              titleEl.innerHTML = '<span class="text-emerald">Authentifié avec succès</span>';
+              descEl.textContent = "Veuillez copier le code d'accès ci-dessous manuellement pour vous connecter.";
+            }
+            
+            tokenInput.value = displayToken;
+            fallbackArea.style.display = 'block';
+          }
+        } catch (error) {
+          console.error("Sign-in error:", error);
+          spinner.style.display = 'none';
+          iconBox.style.display = 'flex';
+          btnGoogle.style.display = 'inline-flex';
+          
+          if (isArabic) {
+            titleEl.innerHTML = '<span style="color: #ef4444;">فشل الاتصال</span>';
+            descEl.textContent = "حدث خطأ: " + (error.message || error.code || error);
+          } else if (isEnglish) {
+            titleEl.innerHTML = '<span style="color: #ef4444;">Connection Failed</span>';
+            descEl.textContent = "An error occurred: " + (error.message || error.code || error);
+          } else {
+            titleEl.innerHTML = '<span style="color: #ef4444;">Échec de la connexion</span>';
+            descEl.textContent = "Une erreur est survenue : " + (error.message || error.code || error);
+          }
+
+          if (window.opener) {
+            try {
+              window.opener.postMessage({
+                type: 'GOOGLE_CREDENTIAL_ERROR',
+                code: error.code || 'unknown',
+                message: error.message
+              }, window.location.origin);
+            } catch (postErr) {
+              console.error(postErr);
+            }
+          }
+        }
+      };
+
+      btnGoogle.addEventListener('click', doSignIn);
+
+      // Auto trigger immediately on page load so user doesn't have to click a second time
+      doSignIn();
+
+      // Copy to clipboard helper
+      btnCopy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(tokenInput.value);
+          const originalText = btnCopy.textContent;
+          btnCopy.textContent = isArabic ? "تم النسخ !" : isEnglish ? "Copied!" : "Copié !";
+          btnCopy.style.background = '#059669';
+          btnCopy.style.color = '#ffffff';
+          setTimeout(() => {
+            btnCopy.textContent = originalText;
+            btnCopy.style.background = '#10b981';
+            btnCopy.style.color = '#0d120f';
+          }, 2000);
+        } catch (err) {
+          console.error("Failed to copy token", err);
+          tokenInput.select();
+        }
+      });
+
+    } catch (e) {
+      console.error(e);
+      titleEl.innerHTML = '<span style="color: #ef4444;">Erreur d\'initialisation</span>';
+      descEl.textContent = e.message;
+    }
+  </script>
+</body>
+</html>

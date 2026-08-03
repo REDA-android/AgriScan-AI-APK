@@ -2,19 +2,11 @@
 	"appId": "com.agroscan.ia",
 	"appName": "AgroScan IA",
 	"webDir": "dist",
+	"bundledWebRuntime": false,
 	"server": {
-		"androidScheme": "https",
-		"hostname": "localhost",
-		"cleartext": true
+		"androidScheme": "https"
 	},
-	"plugins": {
-		"GoogleAuth": {
-			"scopes": [
-				"profile",
-				"email"
-			],
-			"serverClientId": "VOTRE_ID_WEB_FIREBASE.apps.googleusercontent.com",
-			"forceCodeForRefreshToken": true
-		}
+	"ios": {
+		"contentInset": "always"
 	}
 }

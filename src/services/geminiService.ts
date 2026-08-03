@@ -151,7 +151,7 @@ export async function chatWithGemini(
   contents.push({ role: "user", parts: [{ text: message }] });
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.6-flash",
     contents: contents,
   });
 
@@ -259,7 +259,7 @@ export async function analyzePlantImage(
   });
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.6-flash",
     contents: [{ role: "user", parts: parts }],
     config: {
       responseMimeType: "application/json",

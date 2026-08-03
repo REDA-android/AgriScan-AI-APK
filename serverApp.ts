@@ -105,7 +105,7 @@ app.post(
       while (retries >= 0) {
         try {
           response = await ai.models.generateContent({
-            model: req.body.model || "gemini-2.5-flash",
+            model: req.body.model || "gemini-3.6-flash",
             contents: req.body.contents,
             config: req.body.config,
           });
@@ -185,12 +185,9 @@ app.post(["/api/gemini/analyze", "/gemini/analyze"], async (req, res) => {
     while (retries >= 0) {
       try {
         response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.6-flash",
           contents: [{ role: "user", parts: parts }],
           config: {
-            thinkingConfig: {
-              thinkingBudget: 0,
-            },
             responseMimeType: "application/json",
             responseSchema: {
               type: Type.OBJECT,
@@ -316,7 +313,7 @@ app.post(["/api/gemini/chat", "/gemini/chat"], async (req, res) => {
     contents.push({ role: "user", parts: [{ text: message }] });
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: contents,
     });
 
