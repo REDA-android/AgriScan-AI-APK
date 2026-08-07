@@ -1958,7 +1958,7 @@ function WeatherCard({
           )}
           <span className="relative z-10 flex items-center justify-center gap-2">
             <Cloud size={15} strokeWidth={subTab === "meteo" ? 2.5 : 2} />
-            <span>Météo AgroScan</span>
+            <span>Météo AgroScan ⚡</span>
           </span>
         </button>
         <button
