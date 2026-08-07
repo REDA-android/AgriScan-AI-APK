@@ -5355,7 +5355,7 @@ export default function App() {
         </motion.div>
 
         {/* Notifications UI */}
-        <div className="fixed bottom-10 left-0 right-0 p-4 z-[200] flex flex-col gap-2 pointer-events-none items-center max-w-md mx-auto">
+        <div className="fixed bottom-10 left-0 right-0 p-4 z-[200] flex flex-col gap-2 pointer-events-none items-center w-full">
           <AnimatePresence>
             {appNotifications.map((n) => (
               <motion.div
@@ -5444,7 +5444,7 @@ export default function App() {
 
   return (
     <main
-      className="h-[100dvh] overflow-hidden bg-[#0d120f] text-slate-300 font-sans flex flex-col max-w-md mx-auto shadow-2xl border-x border-white/5 relative safe-area-bottom"
+      className="h-[100dvh] overflow-hidden bg-[#0d120f] text-slate-300 font-sans flex flex-col w-full shadow-2xl relative safe-area-bottom"
       dir={isArabic ? "rtl" : "ltr"}
     >
       <LiquidBackground />
@@ -5539,7 +5539,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 border-x border-white/5 max-w-md mx-auto"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 w-full"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -6985,7 +6985,7 @@ export default function App() {
 
       {/* Notifications UI */}
       {appNotifications.length > 0 && (
-        <div className="fixed bottom-20 sm:bottom-24 left-0 right-0 p-4 z-[9999] flex flex-col gap-2 pointer-events-none items-center max-w-md mx-auto">
+        <div className="fixed bottom-20 sm:bottom-24 left-0 right-0 p-4 z-[9999] flex flex-col gap-2 pointer-events-none items-center w-full">
           <AnimatePresence>
             {appNotifications.map((n) => (
               <motion.div
