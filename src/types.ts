@@ -80,6 +80,7 @@ export interface Observation {
   comments?: ObservationComment[];
   audioNotes?: AudioNote[];
   mediaNotes?: MediaNote[];
+  isFavorite?: boolean;
   status: 'analyzing' | 'completed' | 'error' | 'pending';
   isDeletedByCreator?: boolean;
   

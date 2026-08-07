@@ -588,13 +588,13 @@ function ObservationDetail({
     setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
-  const getWhatsAppLabel = () => {
-    if (language === "en") return "Share on WhatsApp";
-    if (language === "ar") return "مشاركة على واتساب";
-    return "Partager sur WhatsApp";
+  const getShareLabel = () => {
+    if (language === "en") return "Share on Social Media";
+    if (language === "ar") return "مشاركة على وسائل التواصل";
+    return "Partager sur les réseaux sociaux";
   };
 
-  const handleShareWhatsApp = () => {
+  const handleShareSocial = async () => {
     const variety =
       observation.variety ||
       (language === "en"
@@ -694,9 +694,20 @@ function ObservationDetail({
       text += `\nPartagé via l'application AgroScan.`;
     }
 
-    const encodedText = encodeURIComponent(text);
-    const whatsappUrl = `https://wa.me/?text=${encodedText}`;
-    window.open(whatsappUrl, "_blank");
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Diagnostic AgroScan',
+          text: text,
+        });
+      } catch (err) {
+        console.error("Erreur de partage:", err);
+      }
+    } else {
+      const encodedText = encodeURIComponent(text);
+      const whatsappUrl = `https://wa.me/?text=${encodedText}`;
+      window.open(whatsappUrl, "_blank");
+    }
   };
 
   return (
@@ -727,6 +738,51 @@ function ObservationDetail({
             </p>
           )}
         </div>
+        <button
+          onClick={async () => {
+            if (observation.id) {
+              const newIsFavorite = !observation.isFavorite;
+              try {
+                await updateDoc(doc(db, "observations", observation.id), {
+                  isFavorite: newIsFavorite
+                });
+              } catch (e) {
+                console.error("Error toggling favorite", e);
+              }
+            }
+          }}
+          className={`p-2 rounded-xl transition-all ${observation.isFavorite ? "bg-amber-500/20 text-amber-500" : "bg-white/5 text-slate-400 hover:bg-white/10"}`}
+          title="Ajouter aux favoris"
+        >
+          <Star size={20} className={observation.isFavorite ? "fill-amber-500" : ""} />
+        </button>
+        <button
+          onClick={async () => {
+            const { generateObservationPDF } = await import("./services/pdfReportService");
+            generateObservationPDF({
+              id: observation.id,
+              capturedAt: observation.capturedAt || observation.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+              culture: observation.culture,
+              variete: observation.variety,
+              siteName: observation.domain,
+              plotName: observation.plot,
+              latitude: observation.location?.lat,
+              longitude: observation.location?.lng,
+              diagnosis: {
+                primaryDisease: observation.phenotypicTraits?.diseasesOrDeficiencies?.[0] || observation.analysis?.diseaseName,
+                healthStatus: observation.phenotypicTraits?.healthStatus?.toLowerCase().includes("critique") ? "critical" : observation.phenotypicTraits?.healthStatus?.toLowerCase().includes("attention") ? "warning" : "healthy",
+                description: observation.description,
+              },
+              notes: observation.userNotes,
+              images: observation.imageUrls || (observation.imageUrl ? [observation.imageUrl] : []),
+              phenotypicTraits: observation.phenotypicTraits,
+            });
+          }}
+          className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
+          title="Télécharger le rapport PDF"
+        >
+          <FileText size={20} />
+        </button>
         {(isAdmin || observation.userId === auth.currentUser?.uid) && (
           <button
             onClick={() => onDelete(observation.id)}
@@ -898,21 +954,26 @@ function ObservationDetail({
 
           <div className="mt-2">
             <button
-              onClick={handleShareWhatsApp}
-              className="w-full py-3 bg-[#25D366] hover:bg-[#20ba56] text-white rounded-full font-black flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              onClick={handleShareSocial}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-black flex items-center justify-center gap-2 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.4.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.717-1.455L0 24zm6.59-4.846c1.6.95 3.1 1.4 4.8.195 5.4-3.1 9.394-4.912 9.398-11.13.002-5.05-4.059-9.157-9.055-9.159-5.003-.002-9.07 4.101-9.073 9.153-.001 2.01.522 3.98 1.51 5.7l-.993 3.633 3.714-.975zm11.367-5.541c-.247-.124-1.461-.72-1.685-.802-.224-.082-.388-.124-.552.124-.164.247-.635.802-.779.965-.143.164-.287.185-.534.062-.247-.124-1.044-.385-1.988-1.227-.735-.656-1.232-1.466-1.376-1.714-.143-.247-.015-.38.11-.502.112-.11.247-.287.371-.432.124-.143.165-.247.247-.412.082-.164.041-.31-.02-.432-.062-.124-.552-1.332-.756-1.823-.203-.488-.406-.412-.552-.42l-.471-.008c-.164 0-.432.062-.656.31-.224.247-.857.837-.857 2.041 0 1.204.877 2.367.999 2.533.123.164 1.725 2.634 4.181 3.693.584.252 1.04.403 1.396.516.587.186 1.12.16 1.543.097.472-.072 1.46-.597 1.666-1.174.206-.576.206-1.07.145-1.173-.06-.104-.224-.164-.471-.287z" />
-              </svg>
-              {getWhatsAppLabel()}
+              <Share2 className="w-5 h-5" />
+              {getShareLabel()}
             </button>
           </div>
         </section>
 
         {observation.bbchDominant && (
           <section className="space-y-4">
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 relative group">
               <TrendingUp size={14} /> Phénologie (BBCH)
+              <Info size={12} className="text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors" />
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-[#0d120f] border border-white/10 shadow-xl rounded-xl z-50 pointer-events-none text-none normal-case tracking-normal">
+                <p className="text-[10px] text-slate-300 leading-relaxed font-normal">
+                  <strong className="text-emerald-400 block mb-1 uppercase tracking-widest">Échelle BBCH</strong>
+                  Système codé pour identifier les stades de développement phénologique des plantes (de la germination à la sénescence).
+                </p>
+              </div>
             </h4>
             <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
               <div className="flex items-center justify-between mb-2">
@@ -2198,11 +2259,11 @@ function WeatherCard({
           </button>
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 relative group flex items-center gap-2">
           <select
             value={selectedIndicator}
             onChange={(e) => setSelectedIndicator(e.target.value as any)}
-            className="w-full p-2 bg-[#0d120f] rounded-xl border border-white/5 text-[10px] font-bold text-slate-400 focus:ring-0 focus:outline-none"
+            className="flex-1 p-2 bg-[#0d120f] rounded-xl border border-white/5 text-[10px] font-bold text-slate-400 focus:ring-0 focus:outline-none"
           >
             {indicators.map((ind) => (
               <option key={ind.key} value={ind.key}>
@@ -2210,6 +2271,17 @@ function WeatherCard({
               </option>
             ))}
           </select>
+          {selectedIndicator === "dpv" && (
+            <>
+              <Info size={16} className="text-slate-400 hover:text-emerald-400 cursor-pointer" />
+              <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-64 p-3 bg-[#0d120f] border border-white/10 shadow-xl rounded-xl z-50 pointer-events-none normal-case tracking-normal">
+                <p className="text-[10px] text-slate-300 leading-relaxed font-normal">
+                  <strong className="text-emerald-400 block mb-1 uppercase tracking-widest">Déficit de Pression de Vapeur (DPV)</strong>
+                  Mesure la différence entre la quantité d'humidité dans l'air et la quantité maximale que l'air peut retenir à une température donnée. Un DPV optimal favorise la transpiration et l'absorption des nutriments.
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="h-40 w-full mb-6 min-w-0 flex items-center justify-center">
@@ -2497,7 +2569,7 @@ export default function App() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [quickFilter, setQuickFilter] = useState<
-    "week" | "month" | "quarter" | "custom"
+    "week" | "month" | "quarter" | "custom" | "favorites"
   >("week");
   const [regionFilter, setRegionFilter] = useState("");
   const [familyFilter, setFamilyFilter] = useState("");
@@ -4772,6 +4844,7 @@ export default function App() {
           : new Date();
 
       let matchesDate = true;
+      let matchesFavorite = true;
       if (quickFilter === "week") {
         const now = new Date();
         const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
@@ -4794,6 +4867,8 @@ export default function App() {
         if (endDate)
           matchesDate =
             matchesDate && obsDate <= new Date(endDate + "T23:59:59");
+      } else if (quickFilter === "favorites") {
+        matchesFavorite = !!obs.isFavorite;
       }
 
       return (
@@ -4801,7 +4876,8 @@ export default function App() {
         matchesRegion &&
         matchesFamily &&
         matchesDomain &&
-        matchesDate
+        matchesDate &&
+        matchesFavorite
       );
     });
   }, [
@@ -6387,6 +6463,12 @@ export default function App() {
                     className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "custom" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.custom}
+                  </button>
+                  <button
+                    onClick={() => setQuickFilter("favorites")}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center gap-1 ${quickFilter === "favorites" ? "bg-amber-500/20 text-amber-500 font-extrabold border border-amber-500/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]" : "liquid-glass-tab-btn-inactive"}`}
+                  >
+                    <Star size={12} className={quickFilter === "favorites" ? "fill-amber-500" : ""} /> Favoris
                   </button>
                 </div>
 
