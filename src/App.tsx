@@ -71,6 +71,7 @@ import {
   Paperclip,
   Share2,
   FileText,
+  FileSpreadsheet,
   BarChart2,
   Thermometer,
   Zap,
@@ -1960,6 +1961,64 @@ function WeatherCard({
     }
   };
 
+  const handleExportWeatherCSV = () => {
+    try {
+      if (!weather || !weather.forecast || weather.forecast.length === 0) {
+        alert("Aucune donnée météo disponible pour l'export.");
+        return;
+      }
+
+      const headers = [
+        "Date",
+        "Condition",
+        "Temp_Moyenne_C",
+        "Temp_Max_C",
+        "Temp_Min_C",
+        "Precipitations_mm",
+        "Probabilite_Precip_Pct",
+        "Humidite_Pct",
+        "ET0_mm_j",
+        "DPV_kPa",
+        "UV_Index_Max",
+        "Vent_Max_kmh",
+        "PAR_Wm2",
+        "Poussiere_PM_ugm3"
+      ];
+
+      const rows = weather.forecast.map((d) => [
+        d.date || "",
+        `"${(d.condition || "").replace(/"/g, '""')}"`,
+        d.tempAvg ?? "",
+        d.tempMax ?? "",
+        d.tempMin ?? "",
+        d.precipQty ?? 0,
+        d.precipProb ?? 0,
+        d.humidity != null ? Math.round(d.humidity) : "",
+        d.et0 ?? "",
+        d.dpv ?? "",
+        d.uvIndexMax ?? d.uvIndex ?? "",
+        d.windSpeed != null ? Math.round(d.windSpeed) : "",
+        d.par ?? "",
+        d.dust ?? 0
+      ]);
+
+      const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      const safeLocName = (weather.locationName || "site").replace(/[^a-zA-Z0-9_-]/g, "_");
+      link.setAttribute("download", `meteo_export_${safeLocName}_${todayStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Erreur lors de l'export CSV", e);
+      alert("Erreur lors de la génération du fichier CSV.");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Sub-tab Navigation Isolated Outside the Weather Display Card */}
@@ -2098,6 +2157,14 @@ function WeatherCard({
                 title="Télécharger le rapport PDF agronomique"
               >
                 <FileText size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={handleExportWeatherCSV}
+                className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
+                title="Exporter les données météo en CSV"
+              >
+                <FileSpreadsheet size={14} />
               </button>
             </div>
 
@@ -2420,36 +2487,88 @@ function WeatherCard({
         </div>
 
         {/* Graphique de comparaison multi-variables : Précipitations, Indice UV & Températures sur 15 jours */}
-        {forecastData && forecastData.length > 0 && (
-          <div className="mt-6 mb-4 p-3.5 sm:p-4 bg-[#0d120f] rounded-2xl border border-white/10 shadow-lg">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-              <div>
-                <h4 className="text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                  <BarChart2 size={15} className="text-emerald-400 shrink-0" />
-                  Comparaison 15 Jours : Pluie, UV & Températures
-                </h4>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Superposition des précipitations (mm), de l'indice UV et des températures (°C)
-                </p>
-                <p className="text-[9px] text-emerald-400/90 font-medium mt-1">
-                  💡 Cliquez sur un jour dans le graphique pour ouvrir la fiche "Détails Météo" (ET0, DPV, Humidité...)
-                </p>
+        {forecastData && forecastData.length > 0 && (() => {
+          const totalRain15 = forecastData.reduce((acc, curr) => acc + (curr.precipQty || 0), 0);
+          const avgET015 = (forecastData.reduce((acc, curr) => acc + (curr.et0 || 0), 0) / forecastData.length).toFixed(1);
+          const maxUV15 = Math.max(...forecastData.map((curr) => curr.uvIndexMax ?? curr.uvIndex ?? 0));
+          const maxTemp15 = Math.max(...forecastData.map((curr) => curr.tempMax ?? -99));
+          const minTemp15 = Math.min(...forecastData.map((curr) => curr.tempMin ?? 99));
+
+          return (
+            <div className="mt-6 mb-4 p-3.5 sm:p-4 bg-[#0d120f] rounded-2xl border border-white/10 shadow-lg">
+              {/* Header section & controls */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div>
+                  <h4 className="text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <BarChart2 size={15} className="text-emerald-400 shrink-0" />
+                    Comparaison 15 Jours : Pluie, UV & Températures
+                  </h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Superposition des précipitations (mm), de l'indice UV et des températures (°C)
+                  </p>
+                  <p className="text-[9px] text-emerald-400/90 font-medium mt-1">
+                    💡 Cliquez sur un jour dans le graphique pour ouvrir la fiche "Détails Météo" (ET0, DPV, Humidité...)
+                  </p>
+                </div>
+                <div className="flex items-center gap-2.5 text-[9px] font-bold shrink-0 flex-wrap">
+                  <span className="flex items-center gap-1 text-red-400">
+                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Temp. Max
+                  </span>
+                  <span className="flex items-center gap-1 text-cyan-400">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span> Temp. Min
+                  </span>
+                  <span className="flex items-center gap-1 text-blue-400">
+                    <span className="w-2 h-2 rounded-xs bg-blue-500 inline-block"></span> Pluie (mm)
+                  </span>
+                  <span className="flex items-center gap-1 text-amber-400">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> UV Max
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleExportWeatherCSV}
+                    className="flex items-center gap-1 px-2 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/30 transition-all cursor-pointer ml-1"
+                    title="Exporter le tableau météo en fichier CSV"
+                  >
+                    <FileSpreadsheet size={12} /> Exporter CSV
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2.5 text-[9px] font-bold shrink-0 flex-wrap">
-                <span className="flex items-center gap-1 text-red-400">
-                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Temp. Max
-                </span>
-                <span className="flex items-center gap-1 text-cyan-400">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span> Temp. Min
-                </span>
-                <span className="flex items-center gap-1 text-blue-400">
-                  <span className="w-2 h-2 rounded-xs bg-blue-500 inline-block"></span> Pluie (mm)
-                </span>
-                <span className="flex items-center gap-1 text-amber-400">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> UV Max
-                </span>
+
+              {/* High-level KPI Badges for Agronomists */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 pt-2 border-t border-white/5">
+                <div className="bg-[#141d17] p-2 rounded-xl border border-blue-500/20">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Cumul Pluie (15J)
+                  </span>
+                  <span className="text-sm font-extrabold text-blue-400">
+                    {totalRain15.toFixed(1)} mm
+                  </span>
+                </div>
+                <div className="bg-[#141d17] p-2 rounded-xl border border-amber-500/20">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
+                    ET0 Moyen
+                  </span>
+                  <span className="text-sm font-extrabold text-amber-400">
+                    {avgET015} mm/j
+                  </span>
+                </div>
+                <div className="bg-[#141d17] p-2 rounded-xl border border-orange-500/20">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Pic UV Max
+                  </span>
+                  <span className="text-sm font-extrabold text-orange-400">
+                    {maxUV15 > -1 ? `${maxUV15} / 12` : "--"}
+                  </span>
+                </div>
+                <div className="bg-[#141d17] p-2 rounded-xl border border-emerald-500/20">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Plage Thermique
+                  </span>
+                  <span className="text-sm font-extrabold text-emerald-400">
+                    {minTemp15 < 99 ? `${minTemp15}°C` : "--"} → {maxTemp15 > -99 ? `${maxTemp15}°C` : "--"}
+                  </span>
+                </div>
               </div>
-            </div>
 
             <div className="h-60 sm:h-64 w-full min-w-0">
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
@@ -2600,7 +2719,8 @@ function WeatherCard({
               </ResponsiveContainer>
             </div>
           </div>
-        )}
+        );
+      })()}
 
         {weather.extras && Object.keys(weather.extras).length > 0 && (
           <div className="mt-4 pt-4 border-t border-white/5">
