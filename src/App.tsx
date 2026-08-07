@@ -151,6 +151,7 @@ import {
   LiquidCard,
   LiquidButton,
   LiquidTabBar,
+  LiquidHeader,
 } from "./components/LiquidGlass";
 // Hooks & Utils
 import { useUserProfile } from "./hooks/useUserProfile";
@@ -2431,18 +2432,52 @@ function WeatherCard({
               />
               <YAxis hide domain={["auto", "auto"]} />
               <Tooltip
-                contentStyle={{
-                  borderRadius: "12px",
-                  border: "none",
-                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                  fontSize: "10px",
-                  fontWeight: "bold",
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0]?.payload || {};
+                    const val = data[selectedIndicator];
+                    const formattedDate = label
+                      ? new Date(label).toLocaleDateString("fr-FR", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : label;
+                    return (
+                      <div className="p-3 bg-[#121814]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl text-xs space-y-1.5 min-w-[185px] pointer-events-none">
+                        <div className="flex justify-between items-center border-b border-white/10 pb-1">
+                          <span className="font-bold text-slate-200 capitalize">{formattedDate}</span>
+                          <span className="text-[9px] text-emerald-400 font-semibold">Toucher pour fiche</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[10px] text-slate-400 font-medium">{currentIndicator.label} :</span>
+                          <span className="font-black text-sm" style={{ color: currentIndicator.color }}>
+                            {val != null ? `${val} ${currentIndicator.unit}` : "--"}
+                          </span>
+                        </div>
+                        {data.condition && (
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span className="text-slate-400">Ciel :</span>
+                            <span className="font-bold uppercase text-blue-400">{data.condition}</span>
+                          </div>
+                        )}
+                        {data.precipQty > 0 && (
+                          <div className="flex justify-between items-center text-[10px] text-blue-400">
+                            <span className="text-slate-400">Précipitations :</span>
+                            <span className="font-bold">{data.precipQty} mm</span>
+                          </div>
+                        )}
+                        {data.et0 != null && (
+                          <div className="flex justify-between items-center text-[10px] text-amber-300">
+                            <span className="text-slate-400">ET0 :</span>
+                            <span className="font-bold">{data.et0} mm/j</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
                 }}
-                labelFormatter={(label) => `Date: ${label}`}
-                formatter={(value: any) => [
-                  `${value} ${currentIndicator.unit}`,
-                  currentIndicator.label,
-                ]}
               />
               <Line
                 type="monotone"
@@ -2460,15 +2495,35 @@ function WeatherCard({
           </ResponsiveContainer>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 snap-x">
+        <motion.div
+          key={`${weather.locationName}-${viewMode}-${selectedIndicator}`}
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.035,
+              },
+            },
+          }}
+          className="flex gap-2 overflow-x-auto pb-2 snap-x"
+        >
           {displayData.map((day, i) => (
-            <div
-              key={i}
+            <motion.div
+              key={`${day.date}-${i}`}
+              variants={{
+                hidden: { opacity: 0, y: 14, scale: 0.92 },
+                show: { opacity: 1, y: 0, scale: 1 },
+              }}
+              whileHover={{ scale: 1.06, y: -2 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setSelectedDayDetail(day)}
-              className="text-center p-2 bg-[#0d120f] hover:bg-[#18221b] rounded-2xl border border-white/5 hover:border-emerald-500/40 shrink-0 min-w-[75px] snap-center cursor-pointer transition-all group"
+              className="text-center p-2.5 bg-[#0d120f] hover:bg-[#18221b] active:bg-[#1f2c23] rounded-2xl border border-white/5 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 shrink-0 min-w-[78px] snap-center cursor-pointer transition-all group"
               title="Cliquer pour afficher les détails du jour"
             >
-              <p className="text-[7px] font-bold text-slate-400 group-hover:text-emerald-400 mb-1 transition-colors">
+              <p className="text-[8px] font-bold text-slate-400 group-hover:text-emerald-400 mb-1 transition-colors capitalize">
                 {day?.date
                   ? new Date(day.date).toLocaleDateString("fr-FR", {
                       weekday: "short",
@@ -2476,15 +2531,15 @@ function WeatherCard({
                     })
                   : "--"}
               </p>
-              <p className="text-xs font-black text-slate-300">
+              <p className="text-xs font-black text-slate-200 group-hover:text-white">
                 {day?.tempAvg ?? "--"}°
               </p>
-              <p className="text-[7px] font-bold text-blue-500 uppercase truncate mt-1">
+              <p className="text-[7.5px] font-extrabold text-blue-400 group-hover:text-blue-300 uppercase truncate mt-1">
                 {day?.condition ?? "--"}
               </p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Graphique de comparaison multi-variables : Précipitations, Indice UV & Températures sur 15 jours */}
         {forecastData && forecastData.length > 0 && (() => {
@@ -6031,38 +6086,53 @@ export default function App() {
       <LiquidBackground />
       <LiquidGlassSVG />
       
-      {/* Header */}
-      <header className="px-4 pb-2.5 pt-[calc(0.75rem+env(safe-area-inset-top))] bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-200">
-        <div className="flex flex-col justify-center min-w-0">
-          <h1 className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white leading-none">
-            AgroScan <span className="text-emerald-600 dark:text-emerald-400">IA</span>
-          </h1>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-[9px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-[0.12em]">
-              AGRONOMIE
-            </p>
-            {firebaseStatus === "connected" && (
-              <span
-                className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"
-                title="Firebase Connecté"
-              ></span>
-            )}
-            {firebaseStatus === "offline" && (
-              <span
-                className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"
-                title="Mode Hors-ligne (Actif)"
-              ></span>
-            )}
-            {firebaseStatus === "error" && (
-              <span
-                className="w-1.5 h-1.5 bg-red-500 rounded-full"
-                title="Erreur Firebase"
-              ></span>
-            )}
-          </div>
+      {/* Header - Liquid Glass Style */}
+      <LiquidHeader>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 backdrop-blur-md shadow-[0_4px_15px_rgba(16,185,129,0.12),inset_0_1px_1px_rgba(255,255,255,0.2)] cursor-pointer"
+            onClick={() => setActiveTab("scan")}
+          >
+            <div className="p-1 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-xs">
+              <Leaf size={14} className="stroke-[2.5]" />
+            </div>
+            <div className="flex flex-col justify-center min-w-0">
+              <h1 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-1 text-slate-900 dark:text-white leading-none">
+                AgroScan <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">IA</span>
+              </h1>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-[8.5px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-[0.14em] leading-none">
+                  AGRONOMIE
+                </p>
+                {firebaseStatus === "connected" && (
+                  <span
+                    className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"
+                    title="Firebase Connecté"
+                  ></span>
+                )}
+                {firebaseStatus === "offline" && (
+                  <span
+                    className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"
+                    title="Mode Hors-ligne (Actif)"
+                  ></span>
+                )}
+                {firebaseStatus === "error" && (
+                  <span
+                    className="w-1.5 h-1.5 bg-red-500 rounded-full"
+                    title="Erreur Firebase"
+                  ></span>
+                )}
+              </div>
+            </div>
+          </motion.div>
         </div>
+
         <div className="flex items-center gap-2 shrink-0">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.08, y: -1 }}
+            whileTap={{ scale: 0.92 }}
             type="button"
             onClick={() => {
               setThemeMode((prev) => {
@@ -6071,7 +6141,7 @@ export default function App() {
                 return "system";
               });
             }}
-            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all active:scale-95 group cursor-pointer"
+            className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/70 dark:bg-white/10 border border-slate-200/90 dark:border-white/15 backdrop-blur-xl flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white/90 dark:hover:bg-white/20 hover:border-emerald-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-[0_4px_15px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] transition-all cursor-pointer"
             title={
               themeMode === "system"
                 ? `Thème : Automatique (${systemPrefersDark ? "Système Sombre" : "Système Clair"}) — Cliquer pour Mode Clair`
@@ -6091,11 +6161,14 @@ export default function App() {
             ) : (
               <Moon size={16} className="text-indigo-400" />
             )}
-          </button>
-          <button
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.08, y: -1 }}
+            whileTap={{ scale: 0.92 }}
             type="button"
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center overflow-hidden hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/70 dark:bg-white/10 border border-slate-200/90 dark:border-white/15 backdrop-blur-xl flex items-center justify-center overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-[0_4px_15px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] hover:border-emerald-500/40 cursor-pointer shrink-0 p-0.5 transition-all group"
             title="Profil & Déconnexion"
             aria-label="Profil et déconnexion"
           >
@@ -6103,15 +6176,17 @@ export default function App() {
               <img
                 src={user.photoURL}
                 alt="Profil"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover rounded-[14px]"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <UserIcon size={16} className="text-slate-600 dark:text-slate-400" />
+              <div className="w-full h-full rounded-[14px] bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
+                <UserIcon size={16} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
             )}
-          </button>
+          </motion.button>
         </div>
-      </header>
+      </LiquidHeader>
 
       {/* Logout Confirmation Modal */}
       <AnimatePresence>
