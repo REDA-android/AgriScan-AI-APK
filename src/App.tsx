@@ -71,6 +71,10 @@ import {
   Paperclip,
   Share2,
   FileText,
+  BarChart2,
+  Thermometer,
+  Zap,
+  Activity,
 } from "lucide-react";
 import { computeAgriculturalHazards, fetchDustData, AgriculturalHazard } from "./services/weatherHazardService";
 
@@ -122,10 +126,14 @@ import { triggerHaptic } from "./utils/haptics";
 import {
   ResponsiveContainer,
   LineChart,
+  ComposedChart,
+  Bar,
+  Area,
   CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
+  Legend,
   Line,
 } from "recharts";
 import { lazy, Suspense } from 'react';
@@ -1850,6 +1858,7 @@ function WeatherCard({
 }) {
   const [selectedIndicator, setSelectedIndicator] =
     useState<keyof WeatherInfo["forecast"][0]>("tempAvg");
+  const [selectedDayDetail, setSelectedDayDetail] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [viewMode, setViewMode] = useState<"forecast" | "history">("forecast");
@@ -2329,7 +2338,15 @@ function WeatherCard({
             minHeight={0}
             debounce={50}
           >
-            <LineChart data={displayData}>
+            <LineChart
+              data={displayData}
+              className="cursor-pointer"
+              onClick={(e) => {
+                if (e && e.activePayload && e.activePayload.length > 0) {
+                  setSelectedDayDetail(e.activePayload[0].payload);
+                }
+              }}
+            >
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
@@ -2380,9 +2397,11 @@ function WeatherCard({
           {displayData.map((day, i) => (
             <div
               key={i}
-              className="text-center p-2 bg-[#0d120f] rounded-2xl border border-white/5 shrink-0 min-w-[70px] snap-center"
+              onClick={() => setSelectedDayDetail(day)}
+              className="text-center p-2 bg-[#0d120f] hover:bg-[#18221b] rounded-2xl border border-white/5 hover:border-emerald-500/40 shrink-0 min-w-[75px] snap-center cursor-pointer transition-all group"
+              title="Cliquer pour afficher les détails du jour"
             >
-              <p className="text-[7px] font-bold text-slate-400 mb-1">
+              <p className="text-[7px] font-bold text-slate-400 group-hover:text-emerald-400 mb-1 transition-colors">
                 {day?.date
                   ? new Date(day.date).toLocaleDateString("fr-FR", {
                       weekday: "short",
@@ -2399,6 +2418,189 @@ function WeatherCard({
             </div>
           ))}
         </div>
+
+        {/* Graphique de comparaison multi-variables : Précipitations, Indice UV & Températures sur 15 jours */}
+        {forecastData && forecastData.length > 0 && (
+          <div className="mt-6 mb-4 p-3.5 sm:p-4 bg-[#0d120f] rounded-2xl border border-white/10 shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <div>
+                <h4 className="text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                  <BarChart2 size={15} className="text-emerald-400 shrink-0" />
+                  Comparaison 15 Jours : Pluie, UV & Températures
+                </h4>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  Superposition des précipitations (mm), de l'indice UV et des températures (°C)
+                </p>
+                <p className="text-[9px] text-emerald-400/90 font-medium mt-1">
+                  💡 Cliquez sur un jour dans le graphique pour ouvrir la fiche "Détails Météo" (ET0, DPV, Humidité...)
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 text-[9px] font-bold shrink-0 flex-wrap">
+                <span className="flex items-center gap-1 text-red-400">
+                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Temp. Max
+                </span>
+                <span className="flex items-center gap-1 text-cyan-400">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span> Temp. Min
+                </span>
+                <span className="flex items-center gap-1 text-blue-400">
+                  <span className="w-2 h-2 rounded-xs bg-blue-500 inline-block"></span> Pluie (mm)
+                </span>
+                <span className="flex items-center gap-1 text-amber-400">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> UV Max
+                </span>
+              </div>
+            </div>
+
+            <div className="h-60 sm:h-64 w-full min-w-0">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
+                <ComposedChart
+                  data={forecastData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  className="cursor-pointer"
+                  onClick={(e) => {
+                    if (e && e.activePayload && e.activePayload.length > 0) {
+                      setSelectedDayDetail(e.activePayload[0].payload);
+                    }
+                  }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1f2923" />
+                  <XAxis
+                    dataKey="date"
+                    fontSize={9}
+                    tickMargin={6}
+                    stroke="#64748b"
+                    tickFormatter={(val) => {
+                      if (!val) return "";
+                      const parts = val.split("-");
+                      return parts.length === 3 ? `${parts[2]}/${parts[1]}` : val;
+                    }}
+                  />
+                  {/* Left Y-Axis for Temperature (°C) */}
+                  <YAxis
+                    yAxisId="temp"
+                    orientation="left"
+                    fontSize={9}
+                    stroke="#ef4444"
+                    domain={["auto", "auto"]}
+                    unit="°"
+                    tickCount={5}
+                  />
+                  {/* Right Y-Axis for Precipitations (mm) */}
+                  <YAxis
+                    yAxisId="precip"
+                    orientation="right"
+                    fontSize={9}
+                    stroke="#3b82f6"
+                    domain={[0, "auto"]}
+                    unit="m"
+                    tickCount={5}
+                  />
+                  {/* Invisible Right Y-Axis for UV Index */}
+                  <YAxis
+                    yAxisId="uv"
+                    orientation="right"
+                    fontSize={9}
+                    stroke="#eab308"
+                    domain={[0, 12]}
+                    hide={true}
+                  />
+
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0]?.payload || {};
+                        const formattedDate = label
+                          ? new Date(label).toLocaleDateString("fr-FR", {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                            })
+                          : label;
+                        return (
+                          <div className="p-3 bg-[#161c18]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl text-xs space-y-1.5 min-w-[170px]">
+                            <p className="font-bold text-slate-200 capitalize border-b border-white/10 pb-1 mb-1 flex justify-between items-center">
+                              <span>{formattedDate}</span>
+                              <span className="text-[9px] text-emerald-400 font-normal">Cliquer pour détails</span>
+                            </p>
+                            <div className="flex justify-between items-center text-red-400">
+                              <span className="text-[10px] text-slate-400">Temp. Max :</span>
+                              <span className="font-extrabold">{data.tempMax != null ? `${data.tempMax}°C` : "--"}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-cyan-400">
+                              <span className="text-[10px] text-slate-400">Temp. Min :</span>
+                              <span className="font-extrabold">{data.tempMin != null ? `${data.tempMin}°C` : "--"}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-blue-400">
+                              <span className="text-[10px] text-slate-400">Précipitations :</span>
+                              <span className="font-extrabold">{data.precipQty != null ? `${data.precipQty} mm` : "0 mm"}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-amber-400">
+                              <span className="text-[10px] text-slate-400">Indice UV Max :</span>
+                              <span className="font-extrabold">{data.uvIndexMax ?? data.uvIndex ?? "--"}</span>
+                            </div>
+                            {data.condition && (
+                              <div className="pt-1 border-t border-white/5 text-[10px] text-emerald-400 font-bold uppercase truncate">
+                                Ciel: {data.condition}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+
+                  {/* Rain bars */}
+                  <Bar
+                    yAxisId="precip"
+                    dataKey="precipQty"
+                    name="Précipitations (mm)"
+                    fill="#3b82f6"
+                    radius={[4, 4, 0, 0]}
+                    fillOpacity={0.65}
+                    maxBarSize={16}
+                  />
+
+                  {/* UV Index Line */}
+                  <Line
+                    yAxisId="uv"
+                    type="monotone"
+                    dataKey="uvIndexMax"
+                    name="Indice UV Max"
+                    stroke="#eab308"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: "#eab308", strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                  />
+
+                  {/* Temp Max Line */}
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tempMax"
+                    name="Temp. Max (°C)"
+                    stroke="#ef4444"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: "#ef4444", strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
+                  />
+
+                  {/* Temp Min Line */}
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tempMin"
+                    name="Temp. Min (°C)"
+                    stroke="#06b6d4"
+                    strokeWidth={2}
+                    strokeDasharray="3 3"
+                    dot={{ r: 2, fill: "#06b6d4", strokeWidth: 0 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         {weather.extras && Object.keys(weather.extras).length > 0 && (
           <div className="mt-4 pt-4 border-t border-white/5">
@@ -2449,6 +2651,210 @@ function WeatherCard({
         )}
       </div>
     </motion.div>
+      {/* Modale 'Détails Météo' complète au clic sur une journée */}
+      <AnimatePresence>
+        {selectedDayDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-[#121814] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            >
+              {/* Header Modale */}
+              <div className="p-4 bg-[#1a231d] border-b border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
+                    <Calendar size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-100">
+                      Détails Météo & Indicateurs Agronomiques
+                    </h3>
+                    <p className="text-xs text-emerald-400 font-bold capitalize">
+                      {selectedDayDetail.date
+                        ? new Date(selectedDayDetail.date).toLocaleDateString("fr-FR", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })
+                        : "Jour sélectionné"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayDetail(null)}
+                  className="p-1.5 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
+                  title="Fermer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Corps Modale */}
+              <div className="p-4 overflow-y-auto space-y-4 text-xs">
+                {/* Carte Résumé Température & Ciel */}
+                <div className="p-3.5 bg-[#0b0f0c] rounded-xl border border-white/5 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Conditions Générales
+                    </span>
+                    <p className="text-base font-black text-slate-100 uppercase mt-0.5">
+                      {selectedDayDetail.condition || "--"}
+                    </p>
+                    <span className="text-[10px] text-slate-400">
+                      {weather.locationName || "Site Agricole"}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-black text-emerald-400">
+                      {selectedDayDetail.tempAvg ?? "--"}°C
+                    </p>
+                    <div className="flex gap-2 text-[10px] font-bold mt-0.5">
+                      <span className="text-red-400">Max: {selectedDayDetail.tempMax ?? "--"}°</span>
+                      <span className="text-cyan-400">Min: {selectedDayDetail.tempMin ?? "--"}°</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Grille d'indicateurs complets */}
+                <div>
+                  <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">
+                    Indicateurs Météo & Climat
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {/* ET0 */}
+                    <div className="p-3 bg-[#18221b] rounded-xl border border-amber-500/20">
+                      <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px] uppercase mb-1">
+                        <Sun size={13} /> Évapotranspiration (ET0)
+                      </div>
+                      <p className="text-lg font-black text-slate-100">
+                        {selectedDayDetail.et0 != null ? `${selectedDayDetail.et0} mm/j` : "--"}
+                      </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Demande en eau de référence</p>
+                    </div>
+
+                    {/* DPV */}
+                    <div className="p-3 bg-[#18221b] rounded-xl border border-purple-500/20">
+                      <div className="flex items-center gap-1.5 text-purple-400 font-bold text-[10px] uppercase mb-1">
+                        <Activity size={13} /> Déficit Vapeur (DPV)
+                      </div>
+                      <p className="text-lg font-black text-slate-100">
+                        {selectedDayDetail.dpv != null ? `${selectedDayDetail.dpv} kPa` : "--"}
+                      </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">
+                        {selectedDayDetail.dpv > 1.2
+                          ? "Transpiration fort / Stress"
+                          : selectedDayDetail.dpv < 0.4
+                          ? "Humidité forte / Risque champignon"
+                          : "Zone transpiratoire optimale"}
+                      </p>
+                    </div>
+
+                    {/* Humidité */}
+                    <div className="p-3 bg-[#18221b] rounded-xl border border-emerald-500/20">
+                      <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[10px] uppercase mb-1">
+                        <Droplets size={13} /> Humidité Relative
+                      </div>
+                      <p className="text-lg font-black text-slate-100">
+                        {selectedDayDetail.humidity != null ? `${Math.round(selectedDayDetail.humidity)}%` : "--"}
+                      </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Humidité moyenne de l'air</p>
+                    </div>
+
+                    {/* Précipitations */}
+                    <div className="p-3 bg-[#18221b] rounded-xl border border-blue-500/20">
+                      <div className="flex items-center gap-1.5 text-blue-400 font-bold text-[10px] uppercase mb-1">
+                        <CloudRain size={13} /> Précipitations
+                      </div>
+                      <p className="text-lg font-black text-slate-100">
+                        {selectedDayDetail.precipQty != null ? `${selectedDayDetail.precipQty} mm` : "0 mm"}
+                      </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">
+                        Probabilité: {selectedDayDetail.precipProb ?? 0}%
+                      </p>
+                    </div>
+
+                    {/* Indice UV */}
+                    <div className="p-3 bg-[#18221b] rounded-xl border border-orange-500/20">
+                      <div className="flex items-center gap-1.5 text-orange-400 font-bold text-[10px] uppercase mb-1">
+                        <Sun size={13} /> Indice UV Max
+                      </div>
+                      <p className="text-lg font-black text-slate-100">
+                        {selectedDayDetail.uvIndexMax ?? selectedDayDetail.uvIndex ?? "--"} / 12
+                      </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Intensité du rayonnement UV</p>
+                    </div>
+
+                    {/* Vent */}
+                    <div className="p-3 bg-[#18221b] rounded-xl border border-slate-500/20">
+                      <div className="flex items-center gap-1.5 text-slate-300 font-bold text-[10px] uppercase mb-1">
+                        <Wind size={13} /> Vent Max
+                      </div>
+                      <p className="text-lg font-black text-slate-100">
+                        {selectedDayDetail.windSpeed != null ? `${Math.round(selectedDayDetail.windSpeed)} km/h` : "--"}
+                      </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Rafales maximales prévues</p>
+                    </div>
+
+                    {/* PAR */}
+                    <div className="p-3 bg-[#18221b] rounded-xl border border-yellow-500/20">
+                      <div className="flex items-center gap-1.5 text-yellow-400 font-bold text-[10px] uppercase mb-1">
+                        <Zap size={13} /> Rayonnement PAR
+                      </div>
+                      <p className="text-lg font-black text-slate-100">
+                        {selectedDayDetail.par != null ? `${selectedDayDetail.par} W/m²` : "--"}
+                      </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Photosynthèse utile</p>
+                    </div>
+
+                    {/* Poussière / Sable */}
+                    <div className="p-3 bg-[#18221b] rounded-xl border border-amber-600/20">
+                      <div className="flex items-center gap-1.5 text-amber-500 font-bold text-[10px] uppercase mb-1">
+                        <Cloud size={13} /> Poussière (PM)
+                      </div>
+                      <p className="text-lg font-black text-slate-100">
+                        {selectedDayDetail.dust != null ? `${selectedDayDetail.dust} µg/m³` : "0 µg/m³"}
+                      </p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Particules en suspension</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Conseil agronomique personnalisé */}
+                <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl">
+                  <h5 className="font-bold text-emerald-400 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1">
+                    <Leaf size={13} /> Conseil Agronomique
+                  </h5>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    {selectedDayDetail.precipQty > 5
+                      ? "Précipitations notables prévues. Réduisez l'irrigation et surveillez l'apparition potentielle de maladies fongiques (mildiou/botrytis)."
+                      : selectedDayDetail.et0 > 4.5
+                      ? "Demande évaporative très forte (ET0 élevé). Un apport d'irrigation compensatoire est recommandé pour limiter le stress hydrique."
+                      : selectedDayDetail.dpv > 1.2
+                      ? "Déficit de pression de vapeur élevé. Les stomates risquent de se fermer durant l'après-midi pour réduire la transpiration."
+                      : "Conditions climatiques équilibrées propices à l'activité photosynthétique et aux interventions de terrain."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Pied de Modale */}
+              <div className="p-3 bg-[#1a231d] border-t border-white/10 text-right">
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayDetail(null)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <InfoModal 
         isOpen={!!infoModal} 
         onClose={() => setInfoModal(null)} 
