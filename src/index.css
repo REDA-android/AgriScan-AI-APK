@@ -441,6 +441,26 @@ body.light-mode .map-control-text {
   color: #e2e8f0;
 }
 
+/* Liquid Tab Bar Label Responsive Typography & Anti-Wrap */
+.liquid-tab-bar-item-label {
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-top: 2px;
+  display: block;
+  text-align: center;
+}
+@media (min-width: 640px) {
+  .liquid-tab-bar-item-label {
+    font-size: 10px;
+  }
+}
+
 body.light-mode .weather-quick-pill {
   background-color: #f7f5ef !important;
   border-color: #e6e2d5 !important;

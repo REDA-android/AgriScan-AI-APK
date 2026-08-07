@@ -58,15 +58,15 @@ export const ChatBot: React.FC = () => {
       {/* Floating Action Button */}
       <button 
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:right-6 md:bottom-24 w-14 h-14 bg-emerald-500/20 backdrop-blur-2xl border border-emerald-400/40 rounded-full flex items-center justify-center text-emerald-300 shadow-[0_10px_30px_rgba(16,185,129,0.35),inset_0_1px_1px_rgba(255,255,255,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 z-[90] ${isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
+        className={`fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] right-3 sm:right-6 md:bottom-24 w-12 h-12 md:w-14 md:h-14 bg-emerald-500/20 backdrop-blur-2xl border border-emerald-400/40 rounded-full flex items-center justify-center text-emerald-300 shadow-[0_10px_30px_rgba(16,185,129,0.35),inset_0_1px_1px_rgba(255,255,255,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 z-[90] ${isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'}`}
         aria-label="Ouvrir le ChatBot"
       >
-        <MessageSquare size={24} className="fill-current drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+        <MessageSquare size={22} className="fill-current drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
       </button>
 
       {/* Chat Window - Liquid Glass Container */}
       <div 
-        className={`fixed inset-0 md:inset-auto md:bottom-6 md:right-6 w-full md:w-[400px] h-[100dvh] md:h-[600px] bg-white/10 dark:bg-black/40 backdrop-blur-3xl webkit-backdrop-blur-xl md:rounded-[32px] border-0 md:border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col transition-all duration-300 origin-bottom-right z-[4000] overflow-hidden ${isOpen ? 'scale-100 opacity-100' : 'scale-0 opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 md:inset-auto md:bottom-6 md:right-6 w-full md:w-[400px] h-[100dvh] md:h-[600px] bg-[#121814]/95 dark:bg-black/85 backdrop-blur-3xl webkit-backdrop-blur-xl md:rounded-[32px] border-0 md:border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.3)] flex flex-col transition-all duration-300 origin-bottom-right z-[4000] overflow-hidden ${isOpen ? 'scale-100 opacity-100 pointer-events-auto' : 'scale-0 opacity-0 pointer-events-none'}`}
       >
         {/* Header */}
         <div className="bg-white/5 p-4 pt-[calc(1rem+env(safe-area-inset-top))] md:pt-4 border-b border-white/10 flex items-center justify-between shrink-0">

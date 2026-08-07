@@ -2028,7 +2028,7 @@ function WeatherCard({
             <iframe
               title="Prévisions Windy"
               src={`https://embed.windy.com/embed2.html?lat=${weather.lat ?? 31.7917}&lon=${weather.lon ?? -7.0926}&detailLat=${weather.lat ?? 31.7917}&detailLon=${weather.lon ?? -7.0926}&zoom=6&level=surface&overlay=${windyOverlay}&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`}
-              className="w-full h-[600px] sm:h-[650px] rounded-2xl border border-white/10 shadow-lg transition-all"
+              className="w-full h-[420px] sm:h-[550px] md:h-[650px] rounded-2xl border border-white/10 shadow-lg transition-all"
               loading="lazy"
             />
             <p className="text-[10px] text-slate-400 text-right">
@@ -2183,23 +2183,23 @@ function WeatherCard({
         </div>
 
         {/* Dedicated Prominent Actions Row: Exporter PDF & Partager */}
-        <div className="grid grid-cols-2 gap-2.5 mb-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mb-4">
           <button
             type="button"
             onClick={handleExportWeatherReport}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-98 border border-emerald-500/30 text-emerald-400 rounded-xl transition-all font-black text-xs shadow-sm cursor-pointer"
+            className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 sm:px-3 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-98 border border-emerald-500/30 text-emerald-400 rounded-xl transition-all font-black text-xs shadow-sm cursor-pointer min-w-0"
             title="Télécharger le rapport PDF agronomique"
           >
-            <FileText size={16} className="shrink-0" />
+            <FileText size={15} className="shrink-0" />
             <span className="truncate">Exporter PDF</span>
           </button>
           <button
             type="button"
             onClick={handleShareWeather}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-blue-500/15 hover:bg-blue-500/25 active:scale-98 border border-blue-500/30 text-blue-400 rounded-xl transition-all font-black text-xs shadow-sm cursor-pointer"
+            className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 sm:px-3 bg-blue-500/15 hover:bg-blue-500/25 active:scale-98 border border-blue-500/30 text-blue-400 rounded-xl transition-all font-black text-xs shadow-sm cursor-pointer min-w-0"
             title="Partager le bulletin météo"
           >
-            <Share2 size={16} className="shrink-0" />
+            <Share2 size={15} className="shrink-0" />
             <span className="truncate">Partager</span>
           </button>
         </div>
@@ -5710,7 +5710,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] scroll-smooth">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-4 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] scroll-smooth min-w-0">
         {activeTab === "scan" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
