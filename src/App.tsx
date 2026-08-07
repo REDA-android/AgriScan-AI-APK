@@ -13,6 +13,8 @@ import {
   Plus,
   Search,
   Wind,
+  Droplets,
+  Droplet,
   Edit2,
   Save,
   RefreshCw,
@@ -1843,43 +1845,64 @@ function WeatherCard({
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="p-5 liquid-glass-card overflow-hidden relative"
-    >
-      <div className="absolute top-0 right-0 p-6 opacity-5 text-blue-400 pointer-events-none">
-        <Cloud size={80} />
+    <div className="space-y-4">
+      {/* Sub-tab Navigation Isolated Outside the Weather Display Card */}
+      <div className="flex w-full liquid-glass-nav-bar p-1.5 rounded-full relative overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setSubTab("meteo")}
+          className={`flex-1 relative py-2.5 px-6 text-xs font-extrabold transition-colors cursor-pointer text-center select-none ${
+            subTab === "meteo"
+              ? "liquid-glass-tab-btn-active"
+              : "liquid-glass-tab-btn-inactive"
+          }`}
+        >
+          {subTab === "meteo" && (
+            <motion.div
+              layoutId="liquidWeatherSubTab"
+              className="absolute inset-0 rounded-full liquid-glass-pill-active"
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            />
+          )}
+          <span className="relative z-10 flex items-center justify-center gap-2">
+            <Cloud size={15} strokeWidth={subTab === "meteo" ? 2.5 : 2} />
+            <span>Météo AgroScan</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("windy")}
+          className={`flex-1 relative py-2.5 px-6 text-xs font-extrabold transition-colors cursor-pointer text-center select-none ${
+            subTab === "windy"
+              ? "liquid-glass-tab-btn-active"
+              : "liquid-glass-tab-btn-inactive"
+          }`}
+        >
+          {subTab === "windy" && (
+            <motion.div
+              layoutId="liquidWeatherSubTab"
+              className="absolute inset-0 rounded-full liquid-glass-pill-active"
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            />
+          )}
+          <span className="relative z-10 flex items-center justify-center gap-2">
+            <MapIcon size={15} strokeWidth={subTab === "windy" ? 2.5 : 2} />
+            <span>Carte Windy</span>
+          </span>
+        </button>
       </div>
 
-      <div className="relative z-10">
-        {/* Sub-tab Navigation */}
-        <div className="flex bg-[#0a0f0c] p-1 rounded-xl border border-white/5 gap-1 mb-4">
-          <button
-            type="button"
-            onClick={() => setSubTab("meteo")}
-            className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all ${
-              subTab === "meteo"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Météo AgroScan
-          </button>
-          <button
-            type="button"
-            onClick={() => setSubTab("windy")}
-            className={`flex-1 py-1.5 px-3 text-xs font-bold rounded-lg transition-all ${
-              subTab === "windy"
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Carte Windy
-          </button>
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="p-5 liquid-glass-card overflow-hidden relative"
+      >
+        <div className="absolute top-0 right-0 p-6 opacity-5 text-blue-400 pointer-events-none">
+          <Cloud size={80} />
         </div>
 
-        {subTab === "windy" ? (
+        <div className="relative z-10">
+          {subTab === "windy" ? (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
               {[
@@ -2021,35 +2044,45 @@ function WeatherCard({
               </div>
             )}
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-slate-200 tracking-tighter">
-                  {isLoading ? "..." : (weather.current.temp ?? "--")}
-                </span>
-                <span className="text-sm font-bold text-slate-400 uppercase">
-                  {weather.current.condition ?? "--"}
-                </span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Cloud size={28} className="text-slate-400" />
+                  <span className="text-4xl font-black text-slate-200 tracking-tighter">
+                    {isLoading ? "..." : (weather.current.temp != null ? `${weather.current.temp}°` : "--")}
+                  </span>
+                  <span className="text-sm font-bold text-slate-400 uppercase tracking-wide">
+                    {weather.current.condition ?? "--"}
+                  </span>
+                </div>
+                {weather.current.uvIndex !== undefined && (
+                  <div className="px-2 py-1 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                    <p className="text-[7px] font-bold text-orange-500 uppercase tracking-widest leading-none mb-0.5">
+                      Index UV
+                    </p>
+                    <p className="text-[10px] font-black text-orange-400 leading-none">
+                      {weather.current.uvIndex}
+                    </p>
+                  </div>
+                )}
+
               </div>
-              {weather.current.uvIndex !== undefined && (
-                <div className="px-2 py-1 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                  <p className="text-[7px] font-bold text-orange-500 uppercase tracking-widest leading-none mb-0.5">
-                    Index UV
-                  </p>
-                  <p className="text-[10px] font-black text-orange-400 leading-none">
-                    {weather.current.uvIndex}
-                  </p>
+
+              {/* Quick Weather Metrics Badges (Humidity % & Wind km/h) */}
+              <div className="flex items-center gap-2.5 mt-1">
+                <div className="weather-quick-pill px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-xs transition-colors">
+                  <Droplet size={14} className="text-sky-500 dark:text-sky-400 stroke-[2.2]" />
+                  <span className="weather-quick-pill-text text-xs font-black text-slate-200">
+                    {weather.current.humidity != null ? `${Math.round(weather.current.humidity)}%` : "--"}
+                  </span>
                 </div>
-              )}
-              {weather.current.dust !== undefined && weather.current.dust > 0 && (
-                <div className="px-2 py-1 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                  <p className="text-[7px] font-bold text-amber-500 uppercase tracking-widest leading-none mb-0.5">
-                    Poussière
-                  </p>
-                  <p className="text-[10px] font-black text-amber-400 leading-none">
-                    {weather.current.dust.toFixed(0)} µg/m³
-                  </p>
+                <div className="weather-quick-pill px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-xs transition-colors">
+                  <Wind size={14} className="text-slate-400 dark:text-slate-300 stroke-[2.2]" />
+                  <span className="weather-quick-pill-text text-xs font-black text-slate-200">
+                    {weather.current.windSpeed != null ? `${Math.round(weather.current.windSpeed)} km/h` : "--"}
+                  </span>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -2265,6 +2298,7 @@ function WeatherCard({
         )}
       </div>
     </motion.div>
+    </div>
   );
 }
 
@@ -5957,7 +5991,7 @@ export default function App() {
                 {observations.slice(0, 5).map((obs) => (
                   <div
                     key={obs.id}
-                    className="flex items-center gap-4 p-3 bg-[#161c18] rounded-xl border border-white/5 shadow-none group relative"
+                    className="flex items-center gap-4 p-3.5 liquid-glass-card shadow-none group relative cursor-pointer"
                   >
                     <div
                       className="relative cursor-pointer"
@@ -6272,7 +6306,7 @@ export default function App() {
             <div className="space-y-4">
               <div className="relative">
                 <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                   size={18}
                 />
                 <input
@@ -6280,33 +6314,33 @@ export default function App() {
                   placeholder={t.search}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-[#161c18] rounded-2xl border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="w-full pl-10 pr-4 py-3 bg-white/5 dark:bg-white/[0.06] backdrop-blur-xl rounded-2xl border border-white/15 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400/50 transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]"
                 />
               </div>
 
-              <div className="p-4 bg-[#161c18] rounded-2xl border border-white/5 space-y-4">
-                <div className="flex bg-white/5 p-1 rounded-xl">
+              <div className="p-4 liquid-glass-card space-y-4">
+                <div className="flex liquid-glass-nav-bar p-1 rounded-2xl">
                   <button
                     onClick={() => setQuickFilter("week")}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${quickFilter === "week" ? "bg-[#161c18] text-emerald-400 shadow-none" : "text-slate-400"}`}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "week" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.week}
                   </button>
                   <button
                     onClick={() => setQuickFilter("month")}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${quickFilter === "month" ? "bg-[#161c18] text-emerald-400 shadow-none" : "text-slate-400"}`}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "month" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.month}
                   </button>
                   <button
                     onClick={() => setQuickFilter("quarter")}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${quickFilter === "quarter" ? "bg-[#161c18] text-emerald-400 shadow-none" : "text-slate-400"}`}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "quarter" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.quarter}
                   </button>
                   <button
                     onClick={() => setQuickFilter("custom")}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-lg transition-all ${quickFilter === "custom" ? "bg-[#161c18] text-emerald-400 shadow-none" : "text-slate-400"}`}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "custom" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.custom}
                   </button>

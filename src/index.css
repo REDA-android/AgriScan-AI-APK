@@ -10,42 +10,76 @@
 
 @layer components {
   .btn-glass {
-    @apply relative overflow-hidden backdrop-blur-xl bg-white/[0.05] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-300 ease-out;
+    @apply relative overflow-hidden backdrop-blur-2xl bg-white/[0.08] border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.4),inset_0_-1px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ease-out;
   }
   .btn-glass:hover {
-    @apply bg-white/[0.1] shadow-[0_12px_48px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.3)] -translate-y-[2px] border-white/20;
+    @apply bg-white/[0.14] shadow-[0_12px_44px_rgba(0,0,0,0.45),inset_0_1.5px_1.5px_rgba(255,255,255,0.6)] -translate-y-[2px] border-white/30;
   }
   .btn-glass:active {
-    @apply bg-white/[0.03] shadow-[0_4px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] translate-y-0 border-white/10;
+    @apply bg-white/[0.04] shadow-[0_4px_16px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] translate-y-0 border-white/15;
   }
   
   .btn-glass-primary {
-    @apply relative overflow-hidden backdrop-blur-xl bg-emerald-500/[0.15] border border-emerald-400/30 shadow-[0_8px_32px_rgba(16,185,129,0.3),inset_0_1px_0_rgba(255,255,255,0.3)] transition-all duration-300 ease-out text-emerald-300;
+    @apply relative overflow-hidden backdrop-blur-2xl bg-emerald-500/[0.18] border border-emerald-400/40 shadow-[0_8px_32px_rgba(16,185,129,0.35),inset_0_1.5px_1.5px_rgba(255,255,255,0.45),0_0_15px_rgba(16,185,129,0.15)] transition-all duration-300 ease-out text-emerald-300;
   }
   .btn-glass-primary:hover {
-    @apply bg-emerald-500/[0.25] shadow-[0_12px_48px_rgba(16,185,129,0.5),inset_0_1px_0_rgba(255,255,255,0.4),0_0_20px_rgba(16,185,129,0.2)] -translate-y-[2px] border-emerald-400/50 text-emerald-200;
+    @apply bg-emerald-500/[0.28] shadow-[0_12px_48px_rgba(16,185,129,0.55),inset_0_2px_2px_rgba(255,255,255,0.6),0_0_25px_rgba(16,185,129,0.3)] -translate-y-[2px] border-emerald-400/60 text-emerald-200;
   }
   .btn-glass-primary:active {
-    @apply bg-emerald-500/[0.1] shadow-[0_4px_16px_rgba(16,185,129,0.2),inset_0_1px_0_rgba(255,255,255,0.2)] translate-y-0 border-emerald-400/20 text-emerald-400;
+    @apply bg-emerald-500/[0.12] shadow-[0_4px_16px_rgba(16,185,129,0.25),inset_0_1px_1px_rgba(255,255,255,0.3)] translate-y-0 border-emerald-400/30 text-emerald-400;
   }
 
-  /* Liquid Glass UI Component styles */
+  /* Liquid Glass UI Component styles - Premium Liquid Glass design language */
   .liquid-glass-card {
-    background: rgba(255, 255, 255, 0.08); /* Sophisticated transluscent dark/glass look */
-    backdrop-filter: blur(16px) saturate(140%);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 24px;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+    backdrop-filter: blur(24px) saturate(190%);
+    -webkit-backdrop-filter: blur(24px) saturate(190%);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 28px;
+    box-shadow: 
+      inset 0 1px 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 2px 0 rgba(0, 0, 0, 0.3),
+      0 20px 50px -10px rgba(0, 0, 0, 0.45),
+      0 0 1px 1px rgba(255, 255, 255, 0.08);
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .liquid-glass-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 28px;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0.25) 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
   }
 
   body.light-mode .liquid-glass-card {
-    background: rgba(255, 255, 255, 0.35) !important;
-    backdrop-filter: blur(16px) saturate(140%) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08) !important;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0.55) 100%
+    ) !important;
+    backdrop-filter: blur(24px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 
+      inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -1px 2px 0 rgba(0, 0, 0, 0.05),
+      0 12px 36px -8px rgba(0, 0, 0, 0.08) !important;
   }
 
   .liquid-glass-interactive {
@@ -123,6 +157,7 @@ body.light-mode .bg-\[\#161c18\],
 body.light-mode .bg-\[\#0d120f\],
 body.light-mode .bg-\[\#121c15\],
 body.light-mode .bg-\[\#121914\],
+body.light-mode .bg-\[\#121814\],
 body.light-mode .bg-\[\#0a0f0c\],
 body.light-mode .bg-\[\#0a0d0b\],
 body.light-mode .bg-\[\#0d1610\],
@@ -135,6 +170,7 @@ body.light-mode [class*="bg-[#161c18]"]:not([class*="dark:"]),
 body.light-mode [class*="bg-[#0d120f]"]:not([class*="dark:"]),
 body.light-mode [class*="bg-[#0a0f0c]"]:not([class*="dark:"]),
 body.light-mode [class*="bg-[#121914]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#121814]"]:not([class*="dark:"]),
 body.light-mode .bg-slate-900,
 body.light-mode .bg-slate-950,
 body.light-mode .bg-emerald-950,
@@ -369,6 +405,232 @@ body.light-mode .leaflet-touch .leaflet-control-zoom-out {
   border-color: #cbd5e1 !important;
 }
 
+/* Light Mode Floating Map Controls & Modals Overrides */
+body.light-mode .light-mode-map-btn {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #cbd5e1 !important;
+  color: #1b4332 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05) !important;
+}
+
+body.light-mode .light-mode-map-btn:hover {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+}
+
+body.light-mode .light-mode-map-btn-active {
+  background-color: #d1fae5 !important;
+  border-color: #10b981 !important;
+  color: #065f46 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
+}
+
+body.light-mode .map-control-icon {
+  color: #2d6a4f !important;
+}
+
+body.light-mode .map-control-text {
+  color: #1b4332 !important;
+  font-weight: 700 !important;
+}
+
+/* Weather Quick Pill Badges (Humidity & Wind) */
+.weather-quick-pill {
+  background-color: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+}
+
+body.light-mode .weather-quick-pill {
+  background-color: #f7f5ef !important;
+  border-color: #e6e2d5 !important;
+  color: #334155 !important;
+}
+
+body.light-mode .weather-quick-pill-text {
+  color: #1e293b !important;
+  font-weight: 800 !important;
+}
+
+/* Weather Isolated Subtab Segment Bar - Liquid Glass style */
+.liquid-glass-nav-bar {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.35),
+    0 12px 32px 0 rgba(0, 0, 0, 0.35),
+    0 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+body.light-mode .liquid-glass-nav-bar {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.6) 100%
+  ) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 1),
+    0 8px 24px 0 rgba(0, 0, 0, 0.08) !important;
+}
+
+.liquid-glass-pill-active {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.25),
+    0 8px 24px 0 rgba(0, 0, 0, 0.3);
+  color: #ffffff !important;
+}
+
+body.light-mode .liquid-glass-pill-active {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(240, 245, 250, 0.85) 100%
+  ) !important;
+  backdrop-filter: blur(20px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 1) !important;
+  box-shadow: 
+    inset 0 2px 3px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.12) !important;
+  color: #0f172a !important;
+}
+
+.liquid-glass-tab-btn-active {
+  color: #ffffff;
+}
+
+body.light-mode .liquid-glass-tab-btn-active {
+  color: #0f172a !important;
+}
+
+.liquid-glass-tab-btn-inactive {
+  color: #94a3b8;
+}
+
+.liquid-glass-tab-btn-inactive:hover {
+  color: #f8fafc;
+}
+
+body.light-mode .liquid-glass-tab-btn-inactive {
+  color: #64748b !important;
+}
+
+body.light-mode .liquid-glass-tab-btn-inactive:hover {
+  color: #0f172a !important;
+}
+
+/* Light Mode Map Modal Overrides */
+body.light-mode .map-modal-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .map-modal-header {
+  border-color: #f1f5f9 !important;
+}
+
+body.light-mode .map-modal-title {
+  color: #0f172a !important;
+}
+
+body.light-mode .map-modal-subtitle, 
+body.light-mode .map-modal-label {
+  color: #64748b !important;
+}
+
+body.light-mode .map-modal-body {
+  background-color: #ffffff !important;
+}
+
+body.light-mode .map-modal-select {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .map-modal-select:hover {
+  border-color: #10b981 !important;
+}
+
+body.light-mode .map-modal-select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .map-modal-[#121814] {
+  background-color: #ffffff !important;
+}
+
+body.light-mode .map-modal-layer-btn {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-mode .map-modal-layer-btn:hover {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+}
+
+body.light-mode .map-modal-layer-btn-active {
+  background-color: #ecfdf5 !important;
+  border-color: #10b981 !important;
+  color: #065f46 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+}
+
+body.light-mode .map-modal-layer-title {
+  color: #0f172a !important;
+}
+
+body.light-mode .map-modal-layer-desc {
+  color: #64748b !important;
+}
+
+body.light-mode .map-modal-footer {
+  background-color: #ffffff !important;
+  border-color: #f1f5f9 !important;
+}
+
+body.light-mode .map-modal-[#2d6a4f]-btn {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+}
+
+body.light-mode .map-modal-[#2d6a4f]-btn:hover {
+  background-color: #059669 !important;
+}
+
+body.light-mode .map-modal-reset-btn {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+}
+
+body.light-mode .map-modal-reset-btn:hover {
+  background-color: #e2e8f0 !important;
+}
+
 /* Navigation bar label styling (.liquid-tab-bar-item-label) */
 .liquid-tab-bar-item-label {
   font-size: 10px;
@@ -425,5 +687,71 @@ body.light-mode header {
 
 body.light-mode header h1 {
   color: #0f172a !important;
+}
+
+/* Custom Leaflet Map Styling for Ultra HD Sharpness and Glass Aesthetics */
+.leaflet-container {
+  background-color: #0b0f0c !important;
+  font-family: inherit;
+}
+.leaflet-popup-content-wrapper {
+  background: rgba(18, 24, 20, 0.95) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+.leaflet-popup-content {
+  margin: 12px 14px !important;
+  line-height: 1.4;
+}
+.leaflet-popup-tip {
+  background: rgba(18, 24, 20, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.leaflet-popup-close-button {
+  color: #94a3b8 !important;
+  padding: 6px 8px 0 0 !important;
+  font-size: 16px !important;
+}
+.leaflet-popup-close-button:hover {
+  color: #34d399 !important;
+}
+.leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4) !important;
+}
+.leaflet-control-zoom-in, .leaflet-control-zoom-out {
+  background-color: rgba(22, 28, 24, 0.9) !important;
+  backdrop-filter: blur(8px);
+  color: #34d399 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+}
+.leaflet-control-zoom-in:hover, .leaflet-control-zoom-out:hover {
+  background-color: rgba(52, 211, 153, 0.2) !important;
+  color: #ffffff !important;
+}
+.custom-map-cluster {
+  background: rgba(16, 185, 129, 0.25);
+  border: 2px solid #10b981;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+  border-radius: 50%;
+  color: #ffffff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
 }
 

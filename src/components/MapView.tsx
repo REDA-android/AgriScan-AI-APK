@@ -1,19 +1,39 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Search, Filter, X, MapPin } from 'lucide-react';
-import { useState, useMemo, FormEvent, useEffect } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, ZoomControl } from 'react-leaflet';
+import { Search, MapPin, Compass, Navigation, Maximize2, Layers, CheckCircle2, AlertTriangle, XCircle, Sparkles, Filter, X } from 'lucide-react';
+import { useState, useMemo, FormEvent, useEffect, useCallback, useRef } from 'react';
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, ZoomControl, Circle } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 
-// Fix for default marker icons in Leaflet with React
-const DefaultIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
+// High Resolution Marker Icons
+const createDefaultIcon = () => L.divIcon({
+  className: 'custom-div-icon',
+  html: `
+    <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+      <div style="position: absolute; width: 28px; height: 28px; background: rgba(16, 185, 129, 0.25); border-radius: 50%; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+      <div style="width: 18px; height: 18px; background: #10b981; border: 2.5px solid #ffffff; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.5), 0 0 12px rgba(16,185,129,0.8); display: flex; align-items: center; justify-content: center;">
+        <div style="width: 5px; height: 5px; background: #ffffff; border-radius: 50%;"></div>
+      </div>
+    </div>
+  `,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -14]
 });
 
-L.Marker.prototype.options.icon = DefaultIcon;
+const createUserIcon = () => L.divIcon({
+  className: 'user-location-icon',
+  html: `
+    <div style="position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+      <div style="position: absolute; width: 32px; height: 32px; background: rgba(59, 130, 246, 0.3); border-radius: 50%; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+      <div style="width: 20px; height: 20px; background: #3b82f6; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 16px rgba(59,130,246,0.9); display: flex; align-items: center; justify-content: center;">
+        <div style="width: 6px; height: 6px; background: #ffffff; border-radius: 50%;"></div>
+      </div>
+    </div>
+  `,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16]
+});
 
 export interface PlantMarker {
   id: string;
@@ -33,19 +53,29 @@ interface MapViewProps {
   center?: [number, number];
   zoom?: number;
   onMarkerClick?: (marker: PlantMarker) => void;
+  onMapClick?: (lat: number, lng: number) => void;
 }
 
-// Component to handle map centering
-function ChangeView({ center, zoom }: { center: [number, number], zoom: number }) {
+// Controller component for smooth animated map panning
+function MapController({ center, zoom, bounds }: { center?: [number, number], zoom?: number, bounds?: L.LatLngBoundsExpression }) {
   const map = useMap();
+  
   useEffect(() => {
-    map.setView(center, zoom);
-  }, [center, zoom, map]);
+    if (bounds) {
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true, duration: 1 });
+    } else if (center) {
+      map.flyTo(center, zoom || map.getZoom(), {
+        duration: 1.2,
+        easeLinearity: 0.25
+      });
+    }
+  }, [center, zoom, bounds, map]);
+
   return null;
 }
 
-// Component to handle map events
-function MapEvents({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
+// Handler for map clicks
+function MapClickHandler({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
   useMapEvents({
     click(e) {
       if (onMapClick) {
@@ -56,317 +86,803 @@ function MapEvents({ onMapClick }: { onMapClick?: (lat: number, lng: number) => 
   return null;
 }
 
-export default function MapView({ markers, center = [48.8566, 2.3522], zoom = 5, onMapClick, onMarkerClick }: MapViewProps & { onMapClick?: (lat: number, lng: number) => void }) {
+export default function MapView({ 
+  markers, 
+  center = [31.7917, -7.0926], // Default center Morocco agricultural zone
+  zoom = 6, 
+  onMapClick, 
+  onMarkerClick 
+}: MapViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(center);
   const [mapZoom, setMapZoom] = useState<number>(zoom);
+  const [fitBoundsTrigger, setFitBoundsTrigger] = useState<L.LatLngBoundsExpression | undefined>();
   const [overlayType, setOverlayType] = useState<'none' | 'health' | 'density'>('none');
   const [isSearching, setIsSearching] = useState(false);
-  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'satellite-alt'>('standard');
+  const [mapType, setMapType] = useState<'satellite-4k' | 'plan-hd' | 'dark-hd' | 'esri-hd'>('satellite-4k');
+  const [showLayersModal, setShowLayersModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
-  // Center on first marker if available and no user location yet
-  useEffect(() => {
-    if (markers.length > 0 && mapCenter[0] === center[0] && mapCenter[1] === center[1]) {
-      setMapCenter([markers[0].lat, markers[0].lng]);
-      setMapZoom(10);
-    }
-  }, [markers, center]);
+  // Filter state
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('');
+  const [selectedRegion, setSelectedRegion] = useState<string>('');
+  const [selectedDomain, setSelectedDomain] = useState<string>('');
+  const [selectedCulture, setSelectedCulture] = useState<string>('');
+  const [selectedFamily, setSelectedFamily] = useState<string>('');
+  
+  // User Geolocation state
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
 
-  useEffect(() => {
-    const fetchLocation = async () => {
-      try {
-        let position: { coords: { latitude: number; longitude: number } };
-        
-        // Import Capacitor dynamically, but we still need to know if we are on a native platform
-        const { Capacitor } = await import('@capacitor/core');
-        
-        if (Capacitor.isNativePlatform()) {
-          const { Geolocation } = await import('@capacitor/geolocation');
-          let check = await Geolocation.checkPermissions();
-          if (check.location !== 'granted') {
-            check = await Geolocation.requestPermissions();
-          }
-
-          try {
-            position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
-          } catch (error) {
-            position = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
-          }
-        } else {
-          position = await new Promise((resolve, reject) => {
-            if (!navigator.geolocation) return reject(new Error("Géolocalisation non supportée"));
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              timeout: 10000,
-              enableHighAccuracy: true,
-            });
-          });
-        }
-        
-        setMapCenter([position.coords.latitude, position.coords.longitude]);
-        setMapZoom(12);
-      } catch (error) {
-        console.warn("Geolocation error:", error);
-      }
-    };
-    fetchLocation();
-  }, []);
-
-  const families = useMemo(() => {
-    const set = new Set(markers.map(m => m.family).filter(Boolean));
-    return Array.from(set) as string[];
+  // Memoized lists for filters
+  const regionsList = useMemo(() => {
+    const set = new Set<string>();
+    markers.forEach(m => {
+      if (m.fullData?.region) set.add(m.fullData.region);
+      if (m.fullData?.wilaya) set.add(m.fullData.wilaya);
+    });
+    const defaults = ["Souss-Massa", "Gharb-Chrarda-Beni Hssen", "Marrakech-Safi", "Fès-Meknès", "Oriental", "Dakhla-Oued Ed-Dahab", "Tanger-Tétouan-Al Hoceïma", "Tadla-Azilal"];
+    defaults.forEach(r => set.add(r));
+    return Array.from(set);
   }, [markers]);
 
+  const domainsList = useMemo(() => {
+    const set = new Set<string>();
+    markers.forEach(m => {
+      if (m.domain) set.add(m.domain);
+    });
+    return Array.from(set);
+  }, [markers]);
+
+  const culturesList = useMemo(() => {
+    const set = new Set<string>();
+    markers.forEach(m => {
+      if (m.name) set.add(m.name);
+      if (m.variety) set.add(m.variety);
+    });
+    return Array.from(set);
+  }, [markers]);
+
+  const familiesList = useMemo(() => {
+    const set = new Set<string>();
+    markers.forEach(m => {
+      if (m.family) set.add(m.family);
+    });
+    return Array.from(set);
+  }, [markers]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (selectedPeriod) count++;
+    if (selectedRegion) count++;
+    if (selectedDomain) count++;
+    if (selectedCulture) count++;
+    if (selectedFamily) count++;
+    return count;
+  }, [selectedPeriod, selectedRegion, selectedDomain, selectedCulture, selectedFamily]);
+
+  const handleResetFilters = () => {
+    setSelectedPeriod('');
+    setSelectedRegion('');
+    setSelectedDomain('');
+    setSelectedCulture('');
+    setSelectedFamily('');
+  };
+
+  // Initialize bounds on load
+  useEffect(() => {
+    if (markers.length > 0 && mapCenter[0] === center[0] && mapCenter[1] === center[1]) {
+      const validMarkers = markers.filter(m => typeof m.lat === 'number' && typeof m.lng === 'number');
+      if (validMarkers.length > 0) {
+        const bounds = L.latLngBounds(validMarkers.map(m => [m.lat, m.lng]));
+        setFitBoundsTrigger(bounds);
+      }
+    }
+  }, [markers]);
+
+  // Handle high precision user geolocation
+  const handleLocateUser = useCallback(async () => {
+    setIsLocating(true);
+    try {
+      const { Capacitor } = await import('@capacitor/core');
+      if (Capacitor.isNativePlatform()) {
+        const { Geolocation } = await import('@capacitor/geolocation');
+        let check = await Geolocation.checkPermissions();
+        if (check.location !== 'granted') {
+          check = await Geolocation.requestPermissions();
+        }
+        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 12000 });
+        const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy || 20 };
+        setUserLocation(newLoc);
+        setMapCenter([newLoc.lat, newLoc.lng]);
+        setMapZoom(16);
+      } else {
+        if (!navigator.geolocation) throw new Error("Géolocalisation non disponible");
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy || 20 };
+            setUserLocation(newLoc);
+            setMapCenter([newLoc.lat, newLoc.lng]);
+            setMapZoom(16);
+            setIsLocating(false);
+          },
+          (err) => {
+            console.warn("Geolocation warning:", err);
+            setIsLocating(false);
+          },
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+        );
+      }
+    } catch (e) {
+      console.warn("User location error:", e);
+    } finally {
+      setIsLocating(false);
+    }
+  }, []);
+
+  // Filter markers
   const filteredMarkers = useMemo(() => {
     return markers.filter(m => {
-      const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           m.variety.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (m.domain && m.domain.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesFamily = !selectedFamily || m.family === selectedFamily;
-      return matchesSearch && matchesFamily;
-    });
-  }, [markers, searchQuery, selectedFamily]);
+      if (typeof m.lat !== 'number' || typeof m.lng !== 'number') return false;
+      
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch = !q || 
+        m.name.toLowerCase().includes(q) || 
+        m.variety.toLowerCase().includes(q) ||
+        (m.domain && m.domain.toLowerCase().includes(q)) ||
+        (m.family && m.family.toLowerCase().includes(q));
 
+      if (!matchesSearch) return false;
+
+      if (selectedRegion) {
+        const reg = (m.fullData?.region || m.fullData?.wilaya || '').toLowerCase();
+        if (reg && !reg.includes(selectedRegion.toLowerCase())) return false;
+      }
+
+      if (selectedDomain && m.domain !== selectedDomain) return false;
+      if (selectedCulture && m.name !== selectedCulture && m.variety !== selectedCulture) return false;
+      if (selectedFamily && m.family !== selectedFamily) return false;
+
+      return true;
+    });
+  }, [markers, searchQuery, selectedRegion, selectedDomain, selectedCulture, selectedFamily]);
+
+  // Search execution (Nominatim + local fallback)
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     try {
-      // Use Nominatim for geographic search
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
-      const data = await response.json();
-      
-      if (data && data.length > 0) {
-        const { lat, lon } = data[0];
-        setMapCenter([parseFloat(lat), parseFloat(lon)]);
-        setMapZoom(13);
-      } else if (filteredMarkers.length > 0) {
-        // Fallback to plant name search if no geo result
-        const first = filteredMarkers[0];
-        setMapCenter([first.lat, first.lng]);
-        setMapZoom(12);
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lon = parseFloat(data[0].lon);
+          setMapCenter([lat, lon]);
+          setMapZoom(14);
+          setIsSearching(false);
+          return;
+        }
       }
-    } catch (error) {
-      console.error("Search error:", error);
-    } finally {
-      setIsSearching(false);
+    } catch (err) {
+      console.warn("Geocoding fetch warning:", err);
+    }
+
+    // Local marker fallback
+    if (filteredMarkers.length > 0) {
+      const first = filteredMarkers[0];
+      setMapCenter([first.lat, first.lng]);
+      setMapZoom(15);
+    }
+    setIsSearching(false);
+  };
+
+  // Recalibrate / Fit all bounds
+  const handleRecalibrate = () => {
+    if (filteredMarkers.length > 0) {
+      const bounds = L.latLngBounds(filteredMarkers.map(m => [m.lat, m.lng]));
+      setFitBoundsTrigger(bounds);
+    } else if (markers.length > 0) {
+      const bounds = L.latLngBounds(markers.map(m => [m.lat, m.lng]));
+      setFitBoundsTrigger(bounds);
     }
   };
 
+  // Color generator for custom indicators
   const getMarkerColor = (marker: PlantMarker) => {
     if (overlayType === 'health') {
-      const status = marker.healthStatus?.toLowerCase() || '';
-      if (status.includes('excellent') || status.includes('bonne') || status.includes('sain')) return '#10b981'; // emerald-500
-      if (status.includes('moyen') || status.includes('stress')) return '#f59e0b'; // amber-500
-      if (status.includes('mauvais') || status.includes('malade')) return '#ef4444'; // red-500
-      return '#3b82f6'; // blue-500 (default)
+      const status = (marker.healthStatus || '').toLowerCase();
+      if (status.includes('excellent') || status.includes('bonne') || status.includes('sain')) return '#10b981'; // Green
+      if (status.includes('moyen') || status.includes('stress') || status.includes('modéré')) return '#f59e0b'; // Amber
+      if (status.includes('mauvais') || status.includes('malade') || status.includes('critique')) return '#ef4444'; // Red
+      return '#3b82f6'; // Blue
     }
     if (overlayType === 'density') {
       const density = parseFloat(marker.density || '0');
-      if (density > 5) return '#7c3aed'; // violet-600
-      if (density > 2) return '#8b5cf6'; // violet-500
-      return '#a78bfa'; // violet-400
+      if (density > 5) return '#8b5cf6'; // Violet high
+      if (density > 2) return '#a78bfa'; // Violet medium
+      return '#c4b5fd'; // Violet light
     }
-    return '#10b981'; // default emerald
+    return '#10b981';
   };
 
   const createCustomIcon = (color: string) => {
     return L.divIcon({
       className: 'custom-div-icon',
-      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
-      iconSize: [12, 12],
-      iconAnchor: [6, 6]
+      html: `
+        <div style="position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 16px; height: 16px; background-color: ${color}; border-radius: 50%; border: 2px solid #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 10px ${color};"></div>
+        </div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -12]
+    });
+  };
+
+  // Custom cluster group icon builder
+  const createClusterCustomIcon = (cluster: any) => {
+    const count = cluster.getChildCount();
+    let size = 36;
+    if (count > 50) size = 46;
+    else if (count > 15) size = 40;
+
+    return L.divIcon({
+      html: `<div class="custom-map-cluster" style="width: ${size}px; height: ${size}px; font-size: ${size > 40 ? 14 : 12}px;">${count}</div>`,
+      className: 'custom-cluster-wrapper',
+      iconSize: L.point(size, size, true)
     });
   };
 
   return (
-    <div className="h-full w-full relative flex flex-col gap-3">
-      {/* Search and Filter UI */}
-      <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-col gap-2 max-w-full">
-        <form onSubmit={handleSearch} className="relative group">
-          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${isSearching ? 'animate-pulse text-emerald-500' : 'text-slate-400'} group-focus-within:text-emerald-500 transition-colors`} size={16} />
-          <input 
-            type="text" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Lieu, parcelle ou variété..." 
-            className="w-full pl-9 pr-8 py-2 bg-[#161c18]/90 backdrop-blur-md rounded-xl shadow-lg border border-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-xs text-slate-200"
-          />
-          {searchQuery && (
-            <button 
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
-            >
-              <X size={16} />
-            </button>
+    <div className="h-full w-full relative flex flex-col bg-[#0b0f0c]">
+      {/* Top Floating Glass Control Bar */}
+      <div 
+        className="absolute top-3 right-3 z-[1000] flex items-center gap-2 pointer-events-auto"
+        onTouchStart={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Filter Modal Trigger Button */}
+        <button
+          type="button"
+          onClick={() => setShowFilterModal(true)}
+          className={`p-2.5 bg-[#121814]/95 backdrop-blur-xl hover:bg-emerald-500/20 active:scale-95 rounded-2xl border shadow-2xl flex items-center gap-1.5 text-xs font-bold transition-all shrink-0 light-mode-map-btn ${
+            activeFiltersCount > 0 
+              ? 'text-emerald-300 border-emerald-500/50 bg-emerald-500/20 ring-2 ring-emerald-500/30 light-mode-map-btn-active' 
+              : 'text-slate-200 border-white/10 hover:text-emerald-400'
+          }`}
+          title="Filtres de la carte"
+        >
+          <Filter size={18} className={activeFiltersCount > 0 ? "text-emerald-400 fill-emerald-400/20 map-control-icon" : "text-emerald-400 map-control-icon"} />
+          {activeFiltersCount > 0 && (
+            <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black flex items-center justify-center">
+              {activeFiltersCount}
+            </span>
           )}
-        </form>
+        </button>
 
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar w-full scroll-smooth">
-          {/* Map Layer Type */}
-          <div className="flex bg-[#161c18]/90 backdrop-blur-md p-0.5 rounded-full shadow-md border border-white/10 shrink-0">
-            <button 
-              onClick={() => setMapType('standard')}
-              className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all whitespace-nowrap ${mapType === 'standard' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-white/5'}`}
-            >
-              Plan
-            </button>
-            <button 
-              onClick={() => setMapType('satellite')}
-              className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all whitespace-nowrap ${mapType === 'satellite' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-white/5'}`}
-            >
-              Satellite
-            </button>
-            <button 
-              onClick={() => setMapType('satellite-alt')}
-              className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all whitespace-nowrap ${mapType === 'satellite-alt' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-white/5'}`}
-            >
-              Sat (Secours)
-            </button>
-          </div>
+        {/* Layer Picker Button */}
+        <button
+          type="button"
+          onClick={() => setShowLayersModal(true)}
+          className="p-2.5 bg-[#121814]/95 backdrop-blur-xl hover:bg-emerald-500/20 active:scale-95 text-emerald-400 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-1.5 text-xs font-bold transition-all shrink-0 light-mode-map-btn"
+          title="Fonds de carte"
+        >
+          <Layers size={18} className="map-control-icon" />
+        </button>
 
-          <div className="h-5 w-px bg-white/10 shrink-0 mx-0.5"></div>
-
-          {/* Overlay Indicator Filter */}
-          <div className="flex bg-[#161c18]/90 backdrop-blur-md p-0.5 rounded-full shadow-md border border-white/10 shrink-0">
-            <button 
-              onClick={() => setOverlayType('none')}
-              className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all whitespace-nowrap ${overlayType === 'none' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-slate-400 hover:bg-white/5'}`}
-            >
-              Tous
-            </button>
-            <button 
-              onClick={() => setOverlayType('health')}
-              className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all whitespace-nowrap ${overlayType === 'health' ? 'bg-emerald-600 text-emerald-50' : 'text-slate-400 hover:bg-white/5'}`}
-            >
-              Santé
-            </button>
-            <button 
-              onClick={() => setOverlayType('density')}
-              className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase transition-all whitespace-nowrap ${overlayType === 'density' ? 'bg-violet-600 text-violet-50' : 'text-slate-400 hover:bg-white/5'}`}
-            >
-              Densité
-            </button>
-          </div>
-
-          <div className="h-5 w-px bg-white/10 shrink-0 mx-0.5"></div>
-
-          <button 
-            onClick={() => {
-              if (markers.length > 0) {
-                setMapCenter([markers[0].lat, markers[0].lng]);
-                setMapZoom(12);
-              }
-            }}
-            className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap shadow-md transition-all bg-[#161c18]/90 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/10 shrink-0 flex items-center gap-1"
-          >
-            <MapPin size={10} /> Recalibrer
-          </button>
-
-          {families.length > 0 && (
-            <>
-              <div className="h-5 w-px bg-white/10 shrink-0 mx-0.5"></div>
-              <button 
-                onClick={() => setSelectedFamily(null)}
-                className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap shadow-md transition-all shrink-0 ${!selectedFamily ? 'bg-emerald-600 text-emerald-50' : 'bg-[#161c18]/90 text-slate-400 border border-white/10'}`}
-              >
-                Toutes Familles
-              </button>
-              {families.map(family => (
-                <button 
-                  key={family}
-                  onClick={() => setSelectedFamily(family)}
-                  className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap shadow-md transition-all shrink-0 ${selectedFamily === family ? 'bg-emerald-600 text-emerald-50' : 'bg-[#161c18]/90 text-slate-400 border border-white/10'}`}
-                >
-                  {family}
-                </button>
-              ))}
-            </>
-          )}
+        {/* Marker Counter Pill */}
+        <div className="px-3 py-2.5 bg-[#121814]/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl flex items-center gap-1.5 text-xs font-semibold text-emerald-400 shrink-0 light-mode-map-btn">
+          <MapPin size={14} className="text-emerald-400 map-control-icon" />
+          <span className="map-control-text">{filteredMarkers.length}</span>
         </div>
       </div>
 
-      <div className="flex-1 rounded-2xl overflow-hidden shadow-inner border border-black/5 relative">
-        <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+      {/* Main Ultra HD Map Container */}
+      <div className="flex-1 w-full h-full relative overflow-hidden">
+        <MapContainer 
+          center={mapCenter} 
+          zoom={mapZoom} 
+          style={{ height: '100%', width: '100%' }} 
+          zoomControl={false}
+          preferCanvas={true} // High efficiency HTML5 Canvas rendering for max FPS speed
+          keepBuffer={2}       // Optimized tile buffer to load tiles fast without network congestion
+          updateWhenIdle={true} // Wait for pan pauses before requesting extra tiles
+          updateWhenZooming={false}
+          maxZoom={22}
+        >
           <ZoomControl position="bottomright" />
-          <ChangeView center={mapCenter} zoom={mapZoom} />
-          <MapEvents onMapClick={onMapClick} />
-          {mapType === 'standard' ? (
+          <MapController center={mapCenter} zoom={mapZoom} bounds={fitBoundsTrigger} />
+          <MapClickHandler onMapClick={onMapClick} />
+
+          {/* Optimized Fast Tile Layer Providers */}
+          {mapType === 'satellite-4k' && (
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; Google Maps Satellite'
+              url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+              subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
+              tileSize={256}
+              zoomOffset={0}
+              maxNativeZoom={20}
+              maxZoom={22}
             />
-          ) : mapType === 'satellite-alt' ? (
+          )}
+
+          {mapType === 'plan-hd' && (
             <TileLayer
-              attribution='&copy; Google'
-              url="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+              attribution='&copy; <a href="https://carto.com/">CARTO</a> Voyager HD'
+              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              subdomains={['a', 'b', 'c', 'd']}
+              maxNativeZoom={19}
+              maxZoom={22}
             />
-          ) : (
+          )}
+
+          {mapType === 'dark-hd' && (
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a> Dark Matter HD'
+              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              subdomains={['a', 'b', 'c', 'd']}
+              maxNativeZoom={19}
+              maxZoom={22}
+            />
+          )}
+
+          {mapType === 'esri-hd' && (
+            <TileLayer
+              attribution='&copy; Esri World Imagery HD'
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              maxNativeZoom={19}
+              maxZoom={22}
+            />
+          )}
+
+          {/* User Location GPS Marker */}
+          {userLocation && (
             <>
-              <TileLayer
-                attribution='&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EBP, and the GIS User Community'
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              />
-              <TileLayer
-                attribution='&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EBP, and the GIS User Community'
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+              <Marker position={[userLocation.lat, userLocation.lng]} icon={createUserIcon()}>
+                <Popup>
+                  <div className="p-2 text-center">
+                    <p className="font-bold text-blue-400 text-xs flex items-center justify-center gap-1">
+                      <Navigation size={12} className="animate-pulse" /> Vous êtes ici
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Précision: ~{Math.round(userLocation.accuracy)}m</p>
+                  </div>
+                </Popup>
+              </Marker>
+              <Circle 
+                center={[userLocation.lat, userLocation.lng]} 
+                radius={userLocation.accuracy} 
+                pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 1.5, dashArray: '4, 4' }}
               />
             </>
           )}
-          {/* Remove MarkerClusterGroup if it causes issues with React 19/Leaflet 5 */}
-          {filteredMarkers.map((marker) => (
-            <Marker 
-              key={marker.id} 
-              position={[marker.lat, marker.lng]}
-              icon={overlayType === 'none' ? DefaultIcon : createCustomIcon(getMarkerColor(marker))}
-              eventHandlers={{
-                click: () => {
-                  if (onMarkerClick) onMarkerClick(marker);
-                }
-              }}
+
+          {/* Marker Cluster Group */}
+          <MarkerClusterGroup
+            chunkedLoading
+            iconCreateFunction={createClusterCustomIcon}
+            maxClusterRadius={45}
+            spiderfyOnMaxZoom={true}
+            showCoverageOnHover={false}
+          >
+            {filteredMarkers.map((marker) => {
+              const icon = overlayType === 'none' 
+                ? createDefaultIcon() 
+                : createCustomIcon(getMarkerColor(marker));
+
+              const imgUrl = marker.fullData?.imageUrl || marker.fullData?.image || marker.fullData?.photoUrl;
+
+              return (
+                <Marker 
+                  key={marker.id} 
+                  position={[marker.lat, marker.lng]}
+                  icon={icon}
+                  eventHandlers={{
+                    click: () => {
+                      if (onMarkerClick) onMarkerClick(marker);
+                    }
+                  }}
+                >
+                  <Popup>
+                    <div className="w-56 overflow-hidden">
+                      {imgUrl && (
+                        <div className="h-28 w-full relative overflow-hidden rounded-t-xl bg-slate-900 -mx-[14px] -mt-[12px] mb-2 border-b border-white/10">
+                          <img 
+                            src={imgUrl} 
+                            alt={marker.name} 
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#121814] via-transparent to-transparent"></div>
+                          {marker.family && (
+                            <span className="absolute bottom-1.5 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded-md text-[9px] font-bold text-emerald-300 border border-white/10">
+                              {marker.family}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between gap-1">
+                          <h3 className="font-bold text-emerald-400 text-sm leading-tight">{marker.name}</h3>
+                        </div>
+
+                        <p className="text-[11px] text-slate-300 font-medium italic">{marker.variety}</p>
+
+                        <div className="pt-2 border-t border-white/10 space-y-1">
+                          {marker.domain && (
+                            <p className="text-[10px] text-slate-300 flex items-center gap-1.5">
+                              <MapPin size={11} className="text-emerald-400 shrink-0" />
+                              <span className="truncate">{marker.domain}</span>
+                            </p>
+                          )}
+
+                          {marker.healthStatus && (
+                            <div className="flex items-center gap-1.5 text-[10px]">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: getMarkerColor(marker) }}></span>
+                              <span className="text-slate-400">Santé:</span>
+                              <span className="font-bold text-slate-200">{marker.healthStatus}</span>
+                            </div>
+                          )}
+
+                          {marker.density && (
+                            <div className="flex items-center gap-1.5 text-[10px]">
+                              <Sparkles size={11} className="text-violet-400 shrink-0" />
+                              <span className="text-slate-400">Densité:</span>
+                              <span className="font-bold text-slate-200">{marker.density}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {onMarkerClick && (
+                          <button
+                            onClick={() => onMarkerClick(marker)}
+                            className="w-full mt-2.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[10px] uppercase tracking-wider rounded-lg border border-emerald-500/30 transition-all flex items-center justify-center gap-1 shadow-md"
+                          >
+                            Examiner en détail
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
+          </MarkerClusterGroup>
+        </MapContainer>
+
+        {/* Map Filter Modal */}
+        {showFilterModal && (
+          <div 
+            className="fixed inset-0 z-[2000] bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+            onClick={() => setShowFilterModal(false)}
+          >
+            <div 
+              className="w-full sm:max-w-md bg-[#121814] map-modal-card border border-white/15 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-100 animate-in slide-in-from-bottom-5 duration-200"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Popup>
-                <div className="p-1 min-w-[120px]">
-                  <h3 className="font-bold text-emerald-400 text-sm">{marker.name}</h3>
-                  <p className="text-[10px] text-slate-400 font-medium">{marker.variety}</p>
-                  <div className="mt-2 space-y-1 border-t border-white/5 pt-2">
-                    {marker.domain && <p className="text-[10px] text-emerald-400 flex items-center gap-1"><MapPin size={10} /> {marker.domain}</p>}
-                    {marker.healthStatus && (
-                      <p className="text-[10px] flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: getMarkerColor(marker) }}></span>
-                        Santé: <span className="font-bold">{marker.healthStatus}</span>
-                      </p>
-                    )}
-                    {marker.density && (
-                      <p className="text-[10px] text-slate-400">
-                        Densité: <span className="font-bold text-slate-300">{marker.density}</span>
-                      </p>
-                    )}
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 map-modal-header">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl map-control-icon">
+                    <Filter size={20} strokeWidth={2.2} />
+                  </div>
+                  <h3 className="font-bold text-lg text-white map-modal-title tracking-tight">Filtres de la carte</h3>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setShowFilterModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer map-modal-subtitle"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Form Fields */}
+              <div className="p-6 space-y-4 overflow-y-auto max-h-[70vh] bg-[#121814] map-modal-body">
+                {/* PÉRIODE */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-extrabold text-slate-400 map-modal-label uppercase tracking-wider">
+                    PÉRIODE
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedPeriod}
+                      onChange={(e) => setSelectedPeriod(e.target.value)}
+                      className="w-full bg-[#1a231d] map-modal-select border border-white/10 hover:border-emerald-500/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl px-4 py-3 text-slate-200 text-sm font-semibold appearance-none transition-all outline-none cursor-pointer pr-10"
+                    >
+                      <option value="" className="bg-[#121814] text-slate-100">Toute période</option>
+                      <option value="today" className="bg-[#121814] text-slate-100">Aujourd'hui</option>
+                      <option value="7d" className="bg-[#121814] text-slate-100">7 derniers jours</option>
+                      <option value="30d" className="bg-[#121814] text-slate-100">30 derniers jours</option>
+                      <option value="3m" className="bg-[#121814] text-slate-100">3 derniers mois</option>
+                      <option value="year" className="bg-[#121814] text-slate-100">Cette année</option>
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 map-modal-subtitle">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MapContainer>
-        
-        {/* Legend for Overlays */}
+
+                {/* RÉGION */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-extrabold text-slate-400 map-modal-label uppercase tracking-wider">
+                    RÉGION
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedRegion}
+                      onChange={(e) => setSelectedRegion(e.target.value)}
+                      className="w-full bg-[#1a231d] map-modal-select border border-white/10 hover:border-emerald-500/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl px-4 py-3 text-slate-200 text-sm font-semibold appearance-none transition-all outline-none cursor-pointer pr-10"
+                    >
+                      <option value="" className="bg-[#121814] text-slate-100">Toutes les régions</option>
+                      {regionsList.map(r => (
+                        <option key={r} value={r} className="bg-[#121814] text-slate-100">{r}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 map-modal-subtitle">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DOMAINE */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-extrabold text-slate-400 map-modal-label uppercase tracking-wider">
+                    DOMAINE
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedDomain}
+                      onChange={(e) => setSelectedDomain(e.target.value)}
+                      className="w-full bg-[#1a231d] map-modal-select border border-white/10 hover:border-emerald-500/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl px-4 py-3 text-slate-200 text-sm font-semibold appearance-none transition-all outline-none cursor-pointer pr-10"
+                    >
+                      <option value="" className="bg-[#121814] text-slate-100">Tous les domaines</option>
+                      {domainsList.map(d => (
+                        <option key={d} value={d} className="bg-[#121814] text-slate-100">{d}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 map-modal-subtitle">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CULTURE */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-extrabold text-slate-400 map-modal-label uppercase tracking-wider">
+                    CULTURE
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedCulture}
+                      onChange={(e) => setSelectedCulture(e.target.value)}
+                      className="w-full bg-[#1a231d] map-modal-select border border-white/10 hover:border-emerald-500/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl px-4 py-3 text-slate-200 text-sm font-semibold appearance-none transition-all outline-none cursor-pointer pr-10"
+                    >
+                      <option value="" className="bg-[#121814] text-slate-100">Toutes les cultures</option>
+                      {culturesList.map(c => (
+                        <option key={c} value={c} className="bg-[#121814] text-slate-100">{c}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 map-modal-subtitle">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* FAMILLE */}
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-extrabold text-slate-400 map-modal-label uppercase tracking-wider">
+                    FAMILLE
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedFamily}
+                      onChange={(e) => setSelectedFamily(e.target.value)}
+                      className="w-full bg-[#1a231d] map-modal-select border border-white/10 hover:border-emerald-500/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 rounded-2xl px-4 py-3 text-slate-200 text-sm font-semibold appearance-none transition-all outline-none cursor-pointer pr-10"
+                    >
+                      <option value="" className="bg-[#121814] text-slate-100">Toutes les familles</option>
+                      {familiesList.map(f => (
+                        <option key={f} value={f} className="bg-[#121814] text-slate-100">{f}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 map-modal-subtitle">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer Action Buttons */}
+              <div className="px-6 py-4 border-t border-white/10 bg-[#121814] map-modal-footer flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="px-5 py-3.5 bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-sm rounded-2xl transition-all cursor-pointer map-modal-reset-btn"
+                >
+                  Réinitialiser
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFilterModal(false)}
+                  className="flex-1 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm rounded-2xl transition-all shadow-md shadow-emerald-500/20 cursor-pointer text-center uppercase tracking-wider map-modal-[#2d6a4f]-btn"
+                >
+                  Voir la carte
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showLayersModal && (
+          <div 
+            className="fixed inset-0 z-[2000] bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200"
+            onClick={() => setShowLayersModal(false)}
+          >
+            <div 
+              className="w-full sm:max-w-md bg-[#121814] map-modal-card border border-white/15 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col text-slate-100 animate-in slide-in-from-bottom-5 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 map-modal-header">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl map-control-icon">
+                    <Layers size={20} strokeWidth={2.2} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-white map-modal-title tracking-tight">Type de Fond de Carte</h3>
+                    <p className="text-xs text-slate-400 map-modal-subtitle font-medium">Sélectionnez la résolution d'affichage idéale</p>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setShowLayersModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer map-modal-subtitle"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Layer Options Grid */}
+              <div className="p-6 grid grid-cols-2 gap-3 bg-[#121814] map-modal-body">
+                {/* Satellite 4K */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMapType('satellite-4k');
+                    setShowLayersModal(false);
+                  }}
+                  className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-3 min-h-[95px] cursor-pointer map-modal-layer-btn ${
+                    mapType === 'satellite-4k' 
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/20 map-modal-layer-btn-active' 
+                      : 'bg-[#1a231d] border-white/10 hover:border-white/25 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-2xl">🛰️</span>
+                    {mapType === 'satellite-4k' && <CheckCircle2 size={18} className="text-emerald-400 map-control-icon" />}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white map-modal-layer-title">Satellite 4K</h4>
+                    <p className="text-[10px] text-slate-400 map-modal-layer-desc mt-0.5 font-medium">Google Hybrid Haute Résolution</p>
+                  </div>
+                </button>
+
+                {/* Esri Aérien HD */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMapType('esri-hd');
+                    setShowLayersModal(false);
+                  }}
+                  className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-3 min-h-[95px] cursor-pointer map-modal-layer-btn ${
+                    mapType === 'esri-hd' 
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/20 map-modal-layer-btn-active' 
+                      : 'bg-[#1a231d] border-white/10 hover:border-white/25 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-2xl">🌍</span>
+                    {mapType === 'esri-hd' && <CheckCircle2 size={18} className="text-emerald-400 map-control-icon" />}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white map-modal-layer-title">Esri Aérien HD</h4>
+                    <p className="text-[10px] text-slate-400 map-modal-layer-desc mt-0.5 font-medium">Imagerie Mondiale Ultra Claire</p>
+                  </div>
+                </button>
+
+                {/* Plan HD */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMapType('plan-hd');
+                    setShowLayersModal(false);
+                  }}
+                  className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-3 min-h-[95px] cursor-pointer map-modal-layer-btn ${
+                    mapType === 'plan-hd' 
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/20 map-modal-layer-btn-active' 
+                      : 'bg-[#1a231d] border-white/10 hover:border-white/25 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-2xl">🗺️</span>
+                    {mapType === 'plan-hd' && <CheckCircle2 size={18} className="text-emerald-400 map-control-icon" />}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white map-modal-layer-title">Plan HD</h4>
+                    <p className="text-[10px] text-slate-400 map-modal-layer-desc mt-0.5 font-medium">Cartographie Routière Voyager</p>
+                  </div>
+                </button>
+
+                {/* Sombre HD */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMapType('dark-hd');
+                    setShowLayersModal(false);
+                  }}
+                  className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between gap-3 min-h-[95px] cursor-pointer map-modal-layer-btn ${
+                    mapType === 'dark-hd' 
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/20 map-modal-layer-btn-active' 
+                      : 'bg-[#1a231d] border-white/10 hover:border-white/25 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-2xl">🌙</span>
+                    {mapType === 'dark-hd' && <CheckCircle2 size={18} className="text-emerald-400 map-control-icon" />}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-white map-modal-layer-title">Sombre HD</h4>
+                    <p className="text-[10px] text-slate-400 map-modal-layer-desc mt-0.5 font-medium">Contraste élevé pour la nuit</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-white/10 bg-[#121814] map-modal-footer">
+                <button
+                  type="button"
+                  onClick={() => setShowLayersModal(false)}
+                  className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm rounded-2xl transition-all shadow-md shadow-emerald-500/20 cursor-pointer text-center uppercase tracking-wider map-modal-[#2d6a4f]-btn"
+                >
+                  Valider
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Active Overlay Color Legend (Bottom Left) */}
         {overlayType !== 'none' && (
-          <div className="absolute bottom-4 left-4 bg-[#161c18]/90 backdrop-blur p-2 rounded-lg shadow-lg border border-white/10 z-[1000] text-[8px] font-bold uppercase tracking-wider space-y-1">
-            <p className="text-slate-400 mb-1">Légende: {overlayType === 'health' ? 'Santé' : 'Densité'}</p>
+          <div className="absolute bottom-6 left-3 bg-[#121814]/95 backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl border border-white/10 z-[1000] text-[9px] font-bold uppercase tracking-wider space-y-1.5 min-w-[130px] pointer-events-auto light-mode-map-btn">
+            <p className="text-slate-400 text-[8px] border-b border-white/10 pb-1 flex items-center justify-between map-control-text">
+              <span>Légende {overlayType === 'health' ? 'Santé' : 'Densité'}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            </p>
             {overlayType === 'health' ? (
-              <>
-                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Bonne</div>
-                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500/100"></span> Stress</div>
-                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-red-500/100"></span> Mauvaise</div>
-              </>
+              <div className="space-y-1 pt-0.5">
+                <div className="flex items-center gap-2 text-slate-200 map-control-text"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span> Sain / Excellent</div>
+                <div className="flex items-center gap-2 text-slate-200 map-control-text"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span> Stress / Modéré</div>
+                <div className="flex items-center gap-2 text-slate-200 map-control-text"><span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></span> Malade / Risque</div>
+              </div>
             ) : (
-              <>
-                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-violet-600"></span> Élevée ({'>'}5)</div>
-                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-violet-500"></span> Moyenne ({'>'}2)</div>
-                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-violet-400"></span> Faible</div>
-              </>
+              <div className="space-y-1 pt-0.5">
+                <div className="flex items-center gap-2 text-slate-200 map-control-text"><span className="w-2.5 h-2.5 rounded-full bg-violet-600 shadow-sm shadow-violet-600/50"></span> Élevée ({'>'}5)</div>
+                <div className="flex items-center gap-2 text-slate-200 map-control-text"><span className="w-2.5 h-2.5 rounded-full bg-violet-400 shadow-sm shadow-violet-400/50"></span> Moyenne ({'>'}2)</div>
+                <div className="flex items-center gap-2 text-slate-200 map-control-text"><span className="w-2.5 h-2.5 rounded-full bg-violet-300 shadow-sm shadow-violet-300/50"></span> Faible</div>
+              </div>
             )}
           </div>
         )}
@@ -374,4 +890,3 @@ export default function MapView({ markers, center = [48.8566, 2.3522], zoom = 5,
     </div>
   );
 }
-
