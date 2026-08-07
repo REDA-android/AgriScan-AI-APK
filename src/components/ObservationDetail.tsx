@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, MapPin, Calendar, Trash2, RefreshCw, Save, Info, CheckCircle2, AlertCircle, Clock, ChevronRight, ChevronLeft, Maximize2, Edit2, X, Share2, Download as QrDownload, FileText, MessageSquare, Send, Mic, Square, Paperclip, Volume2, Video, File, Film, Image as ImageIcon } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Observation, CommentAttachment, AudioNote, MediaNote } from '../types';
-import { generateObservationPDF } from '../services/pdfReportService';
 
 interface ObservationDetailProps {
   observation: Observation;
@@ -275,7 +274,8 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
         </div>
         <div className="flex gap-1 items-center">
           <button
-            onClick={() => {
+            onClick={async () => {
+              const { generateObservationPDF } = await import('../services/pdfReportService');
               generateObservationPDF({
                 id: observation.id,
                 capturedAt: observation.createdAt || new Date().toISOString(),

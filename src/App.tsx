@@ -69,8 +69,9 @@ import {
   Volume2,
   Mic,
   Paperclip,
+  Share2,
+  FileText,
 } from "lucide-react";
-import * as XLSX from "xlsx";
 import { computeAgriculturalHazards, fetchDustData, AgriculturalHazard } from "./services/weatherHazardService";
 
 import { GoogleGenAI } from "@google/genai";
@@ -1844,6 +1845,33 @@ function WeatherCard({
     (l) => l.name === weather.locationName,
   );
 
+  const handleShareWeather = async () => {
+    const text = `Prévisions météo pour ${weather.locationName || 'ce site'} : ${weather.current.temp}°C, ${weather.current.condition}. (via AgroScan IA)`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Météo AgroScan',
+          text: text,
+        });
+      } catch (err) {
+        console.error("Erreur de partage:", err);
+      }
+    } else {
+      navigator.clipboard.writeText(text);
+      alert("Copié dans le presse-papier !");
+    }
+  };
+
+  const handleExportWeatherReport = async () => {
+    try {
+      const { generateWeatherPDF } = await import("./services/weatherPdfService");
+      generateWeatherPDF(weather);
+    } catch (e) {
+      console.error("Erreur lors de la génération du PDF", e);
+      alert("Erreur lors de la génération du rapport Météo.");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Sub-tab Navigation Isolated Outside the Weather Display Card */}
@@ -1964,6 +1992,20 @@ function WeatherCard({
                   size={14}
                   fill={isCurrentSaved ? "currentColor" : "none"}
                 />
+              </button>
+              <button
+                onClick={handleShareWeather}
+                className="p-1 rounded-full text-slate-400 hover:bg-white/5 transition-colors"
+                title="Partager la météo"
+              >
+                <Share2 size={14} />
+              </button>
+              <button
+                onClick={handleExportWeatherReport}
+                className="p-1 rounded-full text-slate-400 hover:bg-white/5 transition-colors"
+                title="Générer un rapport PDF"
+              >
+                <FileText size={14} />
               </button>
             </div>
 
@@ -3429,7 +3471,8 @@ export default function App() {
     }
   }, [user, language]);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import("xlsx");
     const headers = [
       "Culture",
       "Varit",
@@ -3548,6 +3591,7 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
+        const XLSX = await import("xlsx");
         const data = evt.target?.result;
         const workbook = XLSX.read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];

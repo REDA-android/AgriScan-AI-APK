@@ -18,9 +18,16 @@ export default defineConfig(({mode}) => {
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
-          entryFileNames: `assets/[name].js`,
-          chunkFileNames: `assets/[name].js`,
-          assetFileNames: `assets/[name].[ext]`
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+            'capacitor-vendor': ['@capacitor/core', '@capacitor/browser', '@capacitor/geolocation', '@capacitor/app', '@capacitor/haptics'],
+            'ui-vendor': ['lucide-react', 'motion', 'framer-motion'],
+            'map-vendor': ['leaflet', 'react-leaflet', 'react-leaflet-cluster'],
+            'chart-vendor': ['recharts'],
+            'aws-vendor': ['@aws-sdk/client-s3'],
+            'ai-vendor': ['@google/genai']
+          }
         }
       }
     },

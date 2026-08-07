@@ -3,7 +3,46 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>My Google AI Studio App</title>
+    <title>Agri Scan AI</title>
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        var msg = String(message);
+        if (msg.includes('WebSocket') || msg.includes('vite') || msg.includes('HMR')) return;
+        var errorDiv = document.createElement('div');
+        errorDiv.style.position = 'fixed';
+        errorDiv.style.top = '0';
+        errorDiv.style.left = '0';
+        errorDiv.style.width = '100vw';
+        errorDiv.style.height = '100vh';
+        errorDiv.style.backgroundColor = 'white';
+        errorDiv.style.color = 'red';
+        errorDiv.style.zIndex = '999999';
+        errorDiv.style.padding = '20px';
+        errorDiv.style.overflow = 'auto';
+        errorDiv.innerHTML = '<h3>Initial App Crash</h3>' + 
+             '<p>Message: ' + message + '</p>' +
+            '<p>Source: ' + source + ':' + lineno + ':' + colno + '</p>' +
+            '<pre>' + (error && error.stack ? error.stack : '') + '</pre>';
+        document.body.appendChild(errorDiv);
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var reasonStr = String(reason);
+        if (reasonStr.includes('WebSocket') || reasonStr.includes('vite')) return;
+        var errorDiv = document.createElement('div');
+        errorDiv.style.position = 'fixed';
+        errorDiv.style.top = '50px';
+        errorDiv.style.left = '0';
+        errorDiv.style.width = '100vw';
+        errorDiv.style.backgroundColor = 'white';
+        errorDiv.style.color = 'red';
+        errorDiv.style.zIndex = '999999';
+        errorDiv.style.padding = '20px';
+        errorDiv.innerHTML = '<h3>Initial Unhandled Rejection</h3>' + 
+             '<p>Reason: ' + reasonStr + '</p>';
+        document.body.appendChild(errorDiv);
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
