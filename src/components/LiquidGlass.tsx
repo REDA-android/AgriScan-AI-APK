@@ -315,7 +315,7 @@ export const LiquidTabBar = ({
 }) => {
   return (
     <nav
-      className={`fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-2 right-2 sm:left-4 sm:right-4 max-w-[380px] xl:max-w-md mx-auto bg-white/90 dark:bg-[#161c18]/90 backdrop-blur-3xl border border-slate-200/90 dark:border-white/10 p-1 rounded-[2rem] flex justify-between items-center z-50 shadow-[0_12px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] ${className}`}
+      className={`fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-sm xl:max-w-md mx-auto bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-3xl border border-slate-200/90 dark:border-white/10 p-1.5 rounded-[2.2rem] flex justify-around items-center z-50 shadow-[0_12px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] ${className}`}
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
@@ -326,11 +326,11 @@ export const LiquidTabBar = ({
               key={tab.id}
               type="button"
               onClick={() => onTabChange(tab.id)}
-              className="relative -top-5 group outline-none cursor-pointer flex flex-col items-center shrink-0 px-0.5"
+              className="relative -top-5 group outline-none cursor-pointer flex flex-col items-center shrink-0 px-1"
             >
               <motion.div
                 whileTap={{ scale: 0.9 }}
-                className={`p-3 sm:p-3.5 rounded-full shadow-[0_10px_25px_rgba(16,185,129,0.4)] transition-all duration-300 ${
+                className={`p-3.5 rounded-full shadow-[0_10px_25px_rgba(16,185,129,0.4)] transition-all duration-300 ${
                   isActive
                     ? "bg-emerald-500 scale-110 ring-4 ring-emerald-500/20"
                     : "bg-emerald-500 hover:scale-105"
@@ -358,7 +358,7 @@ export const LiquidTabBar = ({
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
-            className={`relative flex flex-col items-center justify-center flex-1 max-w-[62px] sm:max-w-[72px] h-11 z-10 transition-colors duration-200 outline-none cursor-pointer px-0.5 ${
+            className={`relative flex flex-col items-center justify-center flex-1 max-w-[76px] h-12 z-10 transition-colors duration-200 outline-none cursor-pointer px-1 ${
               isActive
                 ? "liquid-tab-bar-active text-emerald-600 dark:text-emerald-400"
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
@@ -693,34 +693,3 @@ export const LiquidOverlappingCards = ({
     </div>
   );
 };
-
-/**
- * Liquid Glass Header
- * Features floating pill capsule with specular glass reflections and frosted blur,
- * matching LiquidTabBar bottom navigation bar.
- */
-export const LiquidHeader = ({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) => {
-  return (
-    <header
-      className={`sticky top-0 z-50 pt-[calc(0.5rem+env(safe-area-inset-top))] px-2.5 sm:px-4 pb-1.5 transition-all duration-300 ${className}`}
-    >
-      <div className="max-w-7xl mx-auto bg-white/90 dark:bg-[#161c18]/90 backdrop-blur-3xl border border-slate-200/90 dark:border-white/10 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-[2rem] flex justify-between items-center shadow-[0_12px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] relative transition-all duration-300 overflow-hidden">
-        {/* Top Glass Reflection Sheen */}
-        <div className="absolute top-0 inset-x-8 h-px bg-gradient-to-r from-transparent via-white/50 dark:via-white/20 to-transparent pointer-events-none" />
-        <div className="absolute top-0 inset-x-0 h-4 bg-gradient-to-b from-white/20 dark:from-white/10 to-transparent rounded-t-[2rem] pointer-events-none" />
-
-        {/* Content */}
-        <div className="relative z-10 w-full flex justify-between items-center gap-2 min-w-0">
-          {children}
-        </div>
-      </div>
-    </header>
-  );
-};
-

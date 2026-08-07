@@ -71,11 +71,6 @@ import {
   Paperclip,
   Share2,
   FileText,
-  FileSpreadsheet,
-  BarChart2,
-  Thermometer,
-  Zap,
-  Activity,
 } from "lucide-react";
 import { computeAgriculturalHazards, fetchDustData, AgriculturalHazard } from "./services/weatherHazardService";
 
@@ -127,23 +122,15 @@ import { triggerHaptic } from "./utils/haptics";
 import {
   ResponsiveContainer,
   LineChart,
-  ComposedChart,
-  Bar,
-  Area,
   CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   Line,
 } from "recharts";
-import { lazy, Suspense } from 'react';
-import type { ProcessedImage } from "./components/CameraView";
-
-const CameraView = lazy(() => import("./components/CameraView"));
-const MapView = lazy(() => import("./components/MapView"));
-const ChatBot = lazy(() => import("./components/ChatBot").then(m => ({ default: m.ChatBot })));
-import { InfoModal } from "./components/InfoModal";
+import CameraView, { ProcessedImage } from "./components/CameraView";
+import MapView from "./components/MapView";
+import { ChatBot } from "./components/ChatBot";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import {
   LiquidGlassSVG,
@@ -151,7 +138,6 @@ import {
   LiquidCard,
   LiquidButton,
   LiquidTabBar,
-  LiquidHeader,
 } from "./components/LiquidGlass";
 // Hooks & Utils
 import { useUserProfile } from "./hooks/useUserProfile";
@@ -351,7 +337,6 @@ function ObservationDetail({
   if (!observation) return null;
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
   const [comments, setComments] = useState<any[]>(
     Array.isArray(observation.comments) ? observation.comments : []
   );
@@ -791,24 +776,12 @@ function ObservationDetail({
               notes: observation.userNotes,
               images: observation.imageUrls || (observation.imageUrl ? [observation.imageUrl] : []),
               phenotypicTraits: observation.phenotypicTraits,
-              weather: observation.weatherData || (weather ? {
-                temp: weather.current?.temp,
-                humidity: weather.current?.humidity,
-                windSpeed: weather.current?.windSpeed,
-                precipitation: weather.current?.precipQty,
-                condition: weather.current?.condition,
-                vpd: weather.current?.vpd,
-                et0: weather.current?.et0,
-                uvIndex: weather.current?.uvIndex,
-                hazards: weather.hazards ? weather.hazards.map((h: any) => typeof h === 'string' ? h : h.title || h.summary) : [],
-                locationName: weather.locationName || observation.domain,
-              } : undefined),
             });
           }}
-          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all font-bold text-[10px] uppercase tracking-wider"
+          className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
           title="Télécharger le rapport PDF"
         >
-          <FileText size={16} /> Exporter PDF
+          <FileText size={20} />
         </button>
         {(isAdmin || observation.userId === auth.currentUser?.uid) && (
           <button
@@ -994,7 +967,13 @@ function ObservationDetail({
           <section className="space-y-4">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 relative group">
               <TrendingUp size={14} /> Phénologie (BBCH)
-              <Info size={16} className="text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors" onClick={(e) => { e.stopPropagation(); setInfoModal({ title: "Échelle BBCH", content: "Système codé pour identifier les stades de développement phénologique des plantes (de la germination à la sénescence)." }); }} />
+              <Info size={12} className="text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors" />
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-[#0d120f] border border-white/10 shadow-xl rounded-xl z-50 pointer-events-none text-none normal-case tracking-normal">
+                <p className="text-[10px] text-slate-300 leading-relaxed font-normal">
+                  <strong className="text-emerald-400 block mb-1 uppercase tracking-widest">Échelle BBCH</strong>
+                  Système codé pour identifier les stades de développement phénologique des plantes (de la germination à la sénescence).
+                </p>
+              </div>
             </h4>
             <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
               <div className="flex items-center justify-between mb-2">
@@ -1418,12 +1397,6 @@ function ObservationDetail({
           </div>
         </section>
       </div>
-      <InfoModal 
-        isOpen={!!infoModal} 
-        onClose={() => setInfoModal(null)} 
-        title={infoModal?.title || ""} 
-        content={infoModal?.content || ""} 
-      />
     </motion.div>
   );
 }
@@ -1860,11 +1833,9 @@ function WeatherCard({
 }) {
   const [selectedIndicator, setSelectedIndicator] =
     useState<keyof WeatherInfo["forecast"][0]>("tempAvg");
-  const [selectedDayDetail, setSelectedDayDetail] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [viewMode, setViewMode] = useState<"forecast" | "history">("forecast");
-  const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
   const [subTab, setSubTab] = useState<"meteo" | "windy">("meteo");
   const [windyOverlay, setWindyOverlay] = useState<"temp" | "rain" | "wind" | "clouds" | "gust">("temp");
 
@@ -1962,64 +1933,6 @@ function WeatherCard({
     }
   };
 
-  const handleExportWeatherCSV = () => {
-    try {
-      if (!weather || !weather.forecast || weather.forecast.length === 0) {
-        alert("Aucune donnée météo disponible pour l'export.");
-        return;
-      }
-
-      const headers = [
-        "Date",
-        "Condition",
-        "Temp_Moyenne_C",
-        "Temp_Max_C",
-        "Temp_Min_C",
-        "Precipitations_mm",
-        "Probabilite_Precip_Pct",
-        "Humidite_Pct",
-        "ET0_mm_j",
-        "DPV_kPa",
-        "UV_Index_Max",
-        "Vent_Max_kmh",
-        "PAR_Wm2",
-        "Poussiere_PM_ugm3"
-      ];
-
-      const rows = weather.forecast.map((d) => [
-        d.date || "",
-        `"${(d.condition || "").replace(/"/g, '""')}"`,
-        d.tempAvg ?? "",
-        d.tempMax ?? "",
-        d.tempMin ?? "",
-        d.precipQty ?? 0,
-        d.precipProb ?? 0,
-        d.humidity != null ? Math.round(d.humidity) : "",
-        d.et0 ?? "",
-        d.dpv ?? "",
-        d.uvIndexMax ?? d.uvIndex ?? "",
-        d.windSpeed != null ? Math.round(d.windSpeed) : "",
-        d.par ?? "",
-        d.dust ?? 0
-      ]);
-
-      const csvContent = "\uFEFF" + [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      const safeLocName = (weather.locationName || "site").replace(/[^a-zA-Z0-9_-]/g, "_");
-      link.setAttribute("download", `meteo_export_${safeLocName}_${todayStr}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Erreur lors de l'export CSV", e);
-      alert("Erreur lors de la génération du fichier CSV.");
-    }
-  };
-
   return (
     <div className="space-y-4">
       {/* Sub-tab Navigation Isolated Outside the Weather Display Card */}
@@ -2042,7 +1955,7 @@ function WeatherCard({
           )}
           <span className="relative z-10 flex items-center justify-center gap-2">
             <Cloud size={15} strokeWidth={subTab === "meteo" ? 2.5 : 2} />
-            <span>Météo AgroScan ⚡</span>
+            <span>Météo AgroScan</span>
           </span>
         </button>
         <button
@@ -2070,7 +1983,7 @@ function WeatherCard({
 
       <motion.div
         initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }} layout
+        animate={{ opacity: 1, y: 0 }}
         className="p-5 liquid-glass-card overflow-hidden relative"
       >
         <div className="absolute top-0 right-0 p-6 opacity-5 text-blue-400 pointer-events-none">
@@ -2109,7 +2022,7 @@ function WeatherCard({
             <iframe
               title="Prévisions Windy"
               src={`https://embed.windy.com/embed2.html?lat=${weather.lat ?? 31.7917}&lon=${weather.lon ?? -7.0926}&detailLat=${weather.lat ?? 31.7917}&detailLon=${weather.lon ?? -7.0926}&zoom=6&level=surface&overlay=${windyOverlay}&menu=&message=true&marker=true&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1`}
-              className="w-full h-[420px] sm:h-[550px] md:h-[650px] rounded-2xl border border-white/10 shadow-lg transition-all"
+              className="w-full h-[600px] sm:h-[650px] rounded-2xl border border-white/10 shadow-lg transition-all"
               loading="lazy"
             />
             <p className="text-[10px] text-slate-400 text-right">
@@ -2120,22 +2033,20 @@ function WeatherCard({
           <>
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
-            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 flex items-center gap-2">
                 <Cloud size={14} /> Météo & Climat
               </h3>
               <button
-                type="button"
                 onClick={() => setIsSearching(!isSearching)}
-                className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                className="p-1 hover:bg-white/5 rounded-full text-slate-400 transition-colors"
                 title="Rechercher un site"
               >
                 <Search size={14} />
               </button>
               <button
-                type="button"
                 onClick={handleToggleSave}
-                className={`p-1 rounded-full transition-colors cursor-pointer ${isCurrentSaved ? "text-yellow-500 hover:bg-yellow-500/20" : "text-slate-400 hover:bg-white/10 hover:text-slate-200"}`}
+                className={`p-1 rounded-full transition-colors ${isCurrentSaved ? "text-yellow-500 hover:bg-yellow-50" : "text-slate-400 hover:bg-white/5"}`}
                 title="Sauvegarder ce site"
               >
                 <Star
@@ -2144,28 +2055,18 @@ function WeatherCard({
                 />
               </button>
               <button
-                type="button"
                 onClick={handleShareWeather}
-                className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
-                title="Partager le bulletin météo"
+                className="p-1 rounded-full text-slate-400 hover:bg-white/5 transition-colors"
+                title="Partager la météo"
               >
                 <Share2 size={14} />
               </button>
               <button
-                type="button"
                 onClick={handleExportWeatherReport}
-                className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
-                title="Télécharger le rapport PDF agronomique"
+                className="p-1 rounded-full text-slate-400 hover:bg-white/5 transition-colors"
+                title="Générer un rapport PDF"
               >
                 <FileText size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={handleExportWeatherCSV}
-                className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
-                title="Exporter les données météo en CSV"
-              >
-                <FileSpreadsheet size={14} />
               </button>
             </div>
 
@@ -2267,6 +2168,7 @@ function WeatherCard({
                     </p>
                   </div>
                 )}
+
               </div>
 
               {/* Quick Weather Metrics Badges (Humidity % & Wind km/h) */}
@@ -2286,28 +2188,6 @@ function WeatherCard({
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Dedicated Prominent Actions Row: Exporter PDF & Partager */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mb-4">
-          <button
-            type="button"
-            onClick={handleExportWeatherReport}
-            className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 sm:px-3 bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-98 border border-emerald-500/30 text-emerald-400 rounded-xl transition-all font-black text-xs shadow-sm cursor-pointer min-w-0"
-            title="Télécharger le rapport PDF agronomique"
-          >
-            <FileText size={15} className="shrink-0" />
-            <span className="truncate">Exporter PDF</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleShareWeather}
-            className="w-full flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 sm:px-3 bg-blue-500/15 hover:bg-blue-500/25 active:scale-98 border border-blue-500/30 text-blue-400 rounded-xl transition-all font-black text-xs shadow-sm cursor-pointer min-w-0"
-            title="Partager le bulletin météo"
-          >
-            <Share2 size={15} className="shrink-0" />
-            <span className="truncate">Partager</span>
-          </button>
         </div>
 
         {/* Agricultural Hazards Section */}
@@ -2393,7 +2273,13 @@ function WeatherCard({
           </select>
           {selectedIndicator === "dpv" && (
             <>
-              <Info size={16} className="text-slate-400 hover:text-emerald-400 cursor-pointer" onClick={(e) => { e.stopPropagation(); setInfoModal({ title: "Déficit de Pression de Vapeur (DPV)", content: "Mesure la différence entre la quantité d'humidité dans l'air et la quantité maximale que l'air peut retenir à une température donnée. Un DPV optimal favorise la transpiration et l'absorption des nutriments." }); }} />
+              <Info size={16} className="text-slate-400 hover:text-emerald-400 cursor-pointer" />
+              <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-64 p-3 bg-[#0d120f] border border-white/10 shadow-xl rounded-xl z-50 pointer-events-none normal-case tracking-normal">
+                <p className="text-[10px] text-slate-300 leading-relaxed font-normal">
+                  <strong className="text-emerald-400 block mb-1 uppercase tracking-widest">Déficit de Pression de Vapeur (DPV)</strong>
+                  Mesure la différence entre la quantité d'humidité dans l'air et la quantité maximale que l'air peut retenir à une température donnée. Un DPV optimal favorise la transpiration et l'absorption des nutriments.
+                </p>
+              </div>
             </>
           )}
         </div>
@@ -2406,15 +2292,7 @@ function WeatherCard({
             minHeight={0}
             debounce={50}
           >
-            <LineChart
-              data={displayData}
-              className="cursor-pointer"
-              onClick={(e) => {
-                if (e && e.activePayload && e.activePayload.length > 0) {
-                  setSelectedDayDetail(e.activePayload[0].payload);
-                }
-              }}
-            >
+            <LineChart data={displayData}>
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
@@ -2432,52 +2310,18 @@ function WeatherCard({
               />
               <YAxis hide domain={["auto", "auto"]} />
               <Tooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0]?.payload || {};
-                    const val = data[selectedIndicator];
-                    const formattedDate = label
-                      ? new Date(label).toLocaleDateString("fr-FR", {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })
-                      : label;
-                    return (
-                      <div className="p-3 bg-[#121814]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl text-xs space-y-1.5 min-w-[185px] pointer-events-none">
-                        <div className="flex justify-between items-center border-b border-white/10 pb-1">
-                          <span className="font-bold text-slate-200 capitalize">{formattedDate}</span>
-                          <span className="text-[9px] text-emerald-400 font-semibold">Toucher pour fiche</span>
-                        </div>
-                        <div className="flex justify-between items-center gap-2">
-                          <span className="text-[10px] text-slate-400 font-medium">{currentIndicator.label} :</span>
-                          <span className="font-black text-sm" style={{ color: currentIndicator.color }}>
-                            {val != null ? `${val} ${currentIndicator.unit}` : "--"}
-                          </span>
-                        </div>
-                        {data.condition && (
-                          <div className="flex justify-between items-center text-[10px]">
-                            <span className="text-slate-400">Ciel :</span>
-                            <span className="font-bold uppercase text-blue-400">{data.condition}</span>
-                          </div>
-                        )}
-                        {data.precipQty > 0 && (
-                          <div className="flex justify-between items-center text-[10px] text-blue-400">
-                            <span className="text-slate-400">Précipitations :</span>
-                            <span className="font-bold">{data.precipQty} mm</span>
-                          </div>
-                        )}
-                        {data.et0 != null && (
-                          <div className="flex justify-between items-center text-[10px] text-amber-300">
-                            <span className="text-slate-400">ET0 :</span>
-                            <span className="font-bold">{data.et0} mm/j</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
+                contentStyle={{
+                  borderRadius: "12px",
+                  border: "none",
+                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                  fontSize: "10px",
+                  fontWeight: "bold",
                 }}
+                labelFormatter={(label) => `Date: ${label}`}
+                formatter={(value: any) => [
+                  `${value} ${currentIndicator.unit}`,
+                  currentIndicator.label,
+                ]}
               />
               <Line
                 type="monotone"
@@ -2495,35 +2339,13 @@ function WeatherCard({
           </ResponsiveContainer>
         </div>
 
-        <motion.div
-          key={`${weather.locationName}-${viewMode}-${selectedIndicator}`}
-          initial="hidden"
-          animate="show"
-          variants={{
-            hidden: { opacity: 0 },
-            show: {
-              opacity: 1,
-              transition: {
-                staggerChildren: 0.035,
-              },
-            },
-          }}
-          className="flex gap-2 overflow-x-auto pb-2 snap-x"
-        >
+        <div className="flex gap-2 overflow-x-auto pb-2 snap-x">
           {displayData.map((day, i) => (
-            <motion.div
-              key={`${day.date}-${i}`}
-              variants={{
-                hidden: { opacity: 0, y: 14, scale: 0.92 },
-                show: { opacity: 1, y: 0, scale: 1 },
-              }}
-              whileHover={{ scale: 1.06, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setSelectedDayDetail(day)}
-              className="text-center p-2.5 bg-[#0d120f] hover:bg-[#18221b] active:bg-[#1f2c23] rounded-2xl border border-white/5 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 shrink-0 min-w-[78px] snap-center cursor-pointer transition-all group"
-              title="Cliquer pour afficher les détails du jour"
+            <div
+              key={i}
+              className="text-center p-2 bg-[#0d120f] rounded-2xl border border-white/5 shrink-0 min-w-[70px] snap-center"
             >
-              <p className="text-[8px] font-bold text-slate-400 group-hover:text-emerald-400 mb-1 transition-colors capitalize">
+              <p className="text-[7px] font-bold text-slate-400 mb-1">
                 {day?.date
                   ? new Date(day.date).toLocaleDateString("fr-FR", {
                       weekday: "short",
@@ -2531,251 +2353,15 @@ function WeatherCard({
                     })
                   : "--"}
               </p>
-              <p className="text-xs font-black text-slate-200 group-hover:text-white">
+              <p className="text-xs font-black text-slate-300">
                 {day?.tempAvg ?? "--"}°
               </p>
-              <p className="text-[7.5px] font-extrabold text-blue-400 group-hover:text-blue-300 uppercase truncate mt-1">
+              <p className="text-[7px] font-bold text-blue-500 uppercase truncate mt-1">
                 {day?.condition ?? "--"}
               </p>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Graphique de comparaison multi-variables : Précipitations, Indice UV & Températures sur 15 jours */}
-        {forecastData && forecastData.length > 0 && (() => {
-          const totalRain15 = forecastData.reduce((acc, curr) => acc + (curr.precipQty || 0), 0);
-          const avgET015 = (forecastData.reduce((acc, curr) => acc + (curr.et0 || 0), 0) / forecastData.length).toFixed(1);
-          const maxUV15 = Math.max(...forecastData.map((curr) => curr.uvIndexMax ?? curr.uvIndex ?? 0));
-          const maxTemp15 = Math.max(...forecastData.map((curr) => curr.tempMax ?? -99));
-          const minTemp15 = Math.min(...forecastData.map((curr) => curr.tempMin ?? 99));
-
-          return (
-            <div className="mt-6 mb-4 p-3.5 sm:p-4 bg-[#0d120f] rounded-2xl border border-white/10 shadow-lg">
-              {/* Header section & controls */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                <div>
-                  <h4 className="text-xs font-black text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                    <BarChart2 size={15} className="text-emerald-400 shrink-0" />
-                    Comparaison 15 Jours : Pluie, UV & Températures
-                  </h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    Superposition des précipitations (mm), de l'indice UV et des températures (°C)
-                  </p>
-                  <p className="text-[9px] text-emerald-400/90 font-medium mt-1">
-                    💡 Cliquez sur un jour dans le graphique pour ouvrir la fiche "Détails Météo" (ET0, DPV, Humidité...)
-                  </p>
-                </div>
-                <div className="flex items-center gap-2.5 text-[9px] font-bold shrink-0 flex-wrap">
-                  <span className="flex items-center gap-1 text-red-400">
-                    <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Temp. Max
-                  </span>
-                  <span className="flex items-center gap-1 text-cyan-400">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block"></span> Temp. Min
-                  </span>
-                  <span className="flex items-center gap-1 text-blue-400">
-                    <span className="w-2 h-2 rounded-xs bg-blue-500 inline-block"></span> Pluie (mm)
-                  </span>
-                  <span className="flex items-center gap-1 text-amber-400">
-                    <span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span> UV Max
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleExportWeatherCSV}
-                    className="flex items-center gap-1 px-2 py-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/30 transition-all cursor-pointer ml-1"
-                    title="Exporter le tableau météo en fichier CSV"
-                  >
-                    <FileSpreadsheet size={12} /> Exporter CSV
-                  </button>
-                </div>
-              </div>
-
-              {/* High-level KPI Badges for Agronomists */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 pt-2 border-t border-white/5">
-                <div className="bg-[#141d17] p-2 rounded-xl border border-blue-500/20">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Cumul Pluie (15J)
-                  </span>
-                  <span className="text-sm font-extrabold text-blue-400">
-                    {totalRain15.toFixed(1)} mm
-                  </span>
-                </div>
-                <div className="bg-[#141d17] p-2 rounded-xl border border-amber-500/20">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
-                    ET0 Moyen
-                  </span>
-                  <span className="text-sm font-extrabold text-amber-400">
-                    {avgET015} mm/j
-                  </span>
-                </div>
-                <div className="bg-[#141d17] p-2 rounded-xl border border-orange-500/20">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Pic UV Max
-                  </span>
-                  <span className="text-sm font-extrabold text-orange-400">
-                    {maxUV15 > -1 ? `${maxUV15} / 12` : "--"}
-                  </span>
-                </div>
-                <div className="bg-[#141d17] p-2 rounded-xl border border-emerald-500/20">
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Plage Thermique
-                  </span>
-                  <span className="text-sm font-extrabold text-emerald-400">
-                    {minTemp15 < 99 ? `${minTemp15}°C` : "--"} → {maxTemp15 > -99 ? `${maxTemp15}°C` : "--"}
-                  </span>
-                </div>
-              </div>
-
-            <div className="h-60 sm:h-64 w-full min-w-0">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
-                <ComposedChart
-                  data={forecastData}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  className="cursor-pointer"
-                  onClick={(e) => {
-                    if (e && e.activePayload && e.activePayload.length > 0) {
-                      setSelectedDayDetail(e.activePayload[0].payload);
-                    }
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1f2923" />
-                  <XAxis
-                    dataKey="date"
-                    fontSize={9}
-                    tickMargin={6}
-                    stroke="#64748b"
-                    tickFormatter={(val) => {
-                      if (!val) return "";
-                      const parts = val.split("-");
-                      return parts.length === 3 ? `${parts[2]}/${parts[1]}` : val;
-                    }}
-                  />
-                  {/* Left Y-Axis for Temperature (°C) */}
-                  <YAxis
-                    yAxisId="temp"
-                    orientation="left"
-                    fontSize={9}
-                    stroke="#ef4444"
-                    domain={["auto", "auto"]}
-                    unit="°"
-                    tickCount={5}
-                  />
-                  {/* Right Y-Axis for Precipitations (mm) */}
-                  <YAxis
-                    yAxisId="precip"
-                    orientation="right"
-                    fontSize={9}
-                    stroke="#3b82f6"
-                    domain={[0, "auto"]}
-                    unit="m"
-                    tickCount={5}
-                  />
-                  {/* Invisible Right Y-Axis for UV Index */}
-                  <YAxis
-                    yAxisId="uv"
-                    orientation="right"
-                    fontSize={9}
-                    stroke="#eab308"
-                    domain={[0, 12]}
-                    hide={true}
-                  />
-
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]?.payload || {};
-                        const formattedDate = label
-                          ? new Date(label).toLocaleDateString("fr-FR", {
-                              weekday: "short",
-                              day: "numeric",
-                              month: "short",
-                            })
-                          : label;
-                        return (
-                          <div className="p-3 bg-[#161c18]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl text-xs space-y-1.5 min-w-[170px]">
-                            <p className="font-bold text-slate-200 capitalize border-b border-white/10 pb-1 mb-1 flex justify-between items-center">
-                              <span>{formattedDate}</span>
-                              <span className="text-[9px] text-emerald-400 font-normal">Cliquer pour détails</span>
-                            </p>
-                            <div className="flex justify-between items-center text-red-400">
-                              <span className="text-[10px] text-slate-400">Temp. Max :</span>
-                              <span className="font-extrabold">{data.tempMax != null ? `${data.tempMax}°C` : "--"}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-cyan-400">
-                              <span className="text-[10px] text-slate-400">Temp. Min :</span>
-                              <span className="font-extrabold">{data.tempMin != null ? `${data.tempMin}°C` : "--"}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-blue-400">
-                              <span className="text-[10px] text-slate-400">Précipitations :</span>
-                              <span className="font-extrabold">{data.precipQty != null ? `${data.precipQty} mm` : "0 mm"}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-amber-400">
-                              <span className="text-[10px] text-slate-400">Indice UV Max :</span>
-                              <span className="font-extrabold">{data.uvIndexMax ?? data.uvIndex ?? "--"}</span>
-                            </div>
-                            {data.condition && (
-                              <div className="pt-1 border-t border-white/5 text-[10px] text-emerald-400 font-bold uppercase truncate">
-                                Ciel: {data.condition}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-
-                  {/* Rain bars */}
-                  <Bar
-                    yAxisId="precip"
-                    dataKey="precipQty"
-                    name="Précipitations (mm)"
-                    fill="#3b82f6"
-                    radius={[4, 4, 0, 0]}
-                    fillOpacity={0.65}
-                    maxBarSize={16}
-                  />
-
-                  {/* UV Index Line */}
-                  <Line
-                    yAxisId="uv"
-                    type="monotone"
-                    dataKey="uvIndexMax"
-                    name="Indice UV Max"
-                    stroke="#eab308"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: "#eab308", strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                  />
-
-                  {/* Temp Max Line */}
-                  <Line
-                    yAxisId="temp"
-                    type="monotone"
-                    dataKey="tempMax"
-                    name="Temp. Max (°C)"
-                    stroke="#ef4444"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: "#ef4444", strokeWidth: 0 }}
-                    activeDot={{ r: 5 }}
-                  />
-
-                  {/* Temp Min Line */}
-                  <Line
-                    yAxisId="temp"
-                    type="monotone"
-                    dataKey="tempMin"
-                    name="Temp. Min (°C)"
-                    stroke="#06b6d4"
-                    strokeWidth={2}
-                    strokeDasharray="3 3"
-                    dot={{ r: 2, fill: "#06b6d4", strokeWidth: 0 }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
             </div>
-          </div>
-        );
-      })()}
+          ))}
+        </div>
 
         {weather.extras && Object.keys(weather.extras).length > 0 && (
           <div className="mt-4 pt-4 border-t border-white/5">
@@ -2826,216 +2412,6 @@ function WeatherCard({
         )}
       </div>
     </motion.div>
-      {/* Modale 'Détails Météo' complète au clic sur une journée */}
-      <AnimatePresence>
-        {selectedDayDetail && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-[#121814] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-            >
-              {/* Header Modale */}
-              <div className="p-4 bg-[#1a231d] border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-emerald-500/20 text-emerald-400 rounded-xl">
-                    <Calendar size={18} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black text-slate-100">
-                      Détails Météo & Indicateurs Agronomiques
-                    </h3>
-                    <p className="text-xs text-emerald-400 font-bold capitalize">
-                      {selectedDayDetail.date
-                        ? new Date(selectedDayDetail.date).toLocaleDateString("fr-FR", {
-                            weekday: "long",
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                          })
-                        : "Jour sélectionné"}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDayDetail(null)}
-                  className="p-1.5 text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-colors cursor-pointer"
-                  title="Fermer"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* Corps Modale */}
-              <div className="p-4 overflow-y-auto space-y-4 text-xs">
-                {/* Carte Résumé Température & Ciel */}
-                <div className="p-3.5 bg-[#0b0f0c] rounded-xl border border-white/5 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Conditions Générales
-                    </span>
-                    <p className="text-base font-black text-slate-100 uppercase mt-0.5">
-                      {selectedDayDetail.condition || "--"}
-                    </p>
-                    <span className="text-[10px] text-slate-400">
-                      {weather.locationName || "Site Agricole"}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-emerald-400">
-                      {selectedDayDetail.tempAvg ?? "--"}°C
-                    </p>
-                    <div className="flex gap-2 text-[10px] font-bold mt-0.5">
-                      <span className="text-red-400">Max: {selectedDayDetail.tempMax ?? "--"}°</span>
-                      <span className="text-cyan-400">Min: {selectedDayDetail.tempMin ?? "--"}°</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grille d'indicateurs complets */}
-                <div>
-                  <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">
-                    Indicateurs Météo & Climat
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {/* ET0 */}
-                    <div className="p-3 bg-[#18221b] rounded-xl border border-amber-500/20">
-                      <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[10px] uppercase mb-1">
-                        <Sun size={13} /> Évapotranspiration (ET0)
-                      </div>
-                      <p className="text-lg font-black text-slate-100">
-                        {selectedDayDetail.et0 != null ? `${selectedDayDetail.et0} mm/j` : "--"}
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">Demande en eau de référence</p>
-                    </div>
-
-                    {/* DPV */}
-                    <div className="p-3 bg-[#18221b] rounded-xl border border-purple-500/20">
-                      <div className="flex items-center gap-1.5 text-purple-400 font-bold text-[10px] uppercase mb-1">
-                        <Activity size={13} /> Déficit Vapeur (DPV)
-                      </div>
-                      <p className="text-lg font-black text-slate-100">
-                        {selectedDayDetail.dpv != null ? `${selectedDayDetail.dpv} kPa` : "--"}
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">
-                        {selectedDayDetail.dpv > 1.2
-                          ? "Transpiration fort / Stress"
-                          : selectedDayDetail.dpv < 0.4
-                          ? "Humidité forte / Risque champignon"
-                          : "Zone transpiratoire optimale"}
-                      </p>
-                    </div>
-
-                    {/* Humidité */}
-                    <div className="p-3 bg-[#18221b] rounded-xl border border-emerald-500/20">
-                      <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[10px] uppercase mb-1">
-                        <Droplets size={13} /> Humidité Relative
-                      </div>
-                      <p className="text-lg font-black text-slate-100">
-                        {selectedDayDetail.humidity != null ? `${Math.round(selectedDayDetail.humidity)}%` : "--"}
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">Humidité moyenne de l'air</p>
-                    </div>
-
-                    {/* Précipitations */}
-                    <div className="p-3 bg-[#18221b] rounded-xl border border-blue-500/20">
-                      <div className="flex items-center gap-1.5 text-blue-400 font-bold text-[10px] uppercase mb-1">
-                        <CloudRain size={13} /> Précipitations
-                      </div>
-                      <p className="text-lg font-black text-slate-100">
-                        {selectedDayDetail.precipQty != null ? `${selectedDayDetail.precipQty} mm` : "0 mm"}
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">
-                        Probabilité: {selectedDayDetail.precipProb ?? 0}%
-                      </p>
-                    </div>
-
-                    {/* Indice UV */}
-                    <div className="p-3 bg-[#18221b] rounded-xl border border-orange-500/20">
-                      <div className="flex items-center gap-1.5 text-orange-400 font-bold text-[10px] uppercase mb-1">
-                        <Sun size={13} /> Indice UV Max
-                      </div>
-                      <p className="text-lg font-black text-slate-100">
-                        {selectedDayDetail.uvIndexMax ?? selectedDayDetail.uvIndex ?? "--"} / 12
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">Intensité du rayonnement UV</p>
-                    </div>
-
-                    {/* Vent */}
-                    <div className="p-3 bg-[#18221b] rounded-xl border border-slate-500/20">
-                      <div className="flex items-center gap-1.5 text-slate-300 font-bold text-[10px] uppercase mb-1">
-                        <Wind size={13} /> Vent Max
-                      </div>
-                      <p className="text-lg font-black text-slate-100">
-                        {selectedDayDetail.windSpeed != null ? `${Math.round(selectedDayDetail.windSpeed)} km/h` : "--"}
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">Rafales maximales prévues</p>
-                    </div>
-
-                    {/* PAR */}
-                    <div className="p-3 bg-[#18221b] rounded-xl border border-yellow-500/20">
-                      <div className="flex items-center gap-1.5 text-yellow-400 font-bold text-[10px] uppercase mb-1">
-                        <Zap size={13} /> Rayonnement PAR
-                      </div>
-                      <p className="text-lg font-black text-slate-100">
-                        {selectedDayDetail.par != null ? `${selectedDayDetail.par} W/m²` : "--"}
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">Photosynthèse utile</p>
-                    </div>
-
-                    {/* Poussière / Sable */}
-                    <div className="p-3 bg-[#18221b] rounded-xl border border-amber-600/20">
-                      <div className="flex items-center gap-1.5 text-amber-500 font-bold text-[10px] uppercase mb-1">
-                        <Cloud size={13} /> Poussière (PM)
-                      </div>
-                      <p className="text-lg font-black text-slate-100">
-                        {selectedDayDetail.dust != null ? `${selectedDayDetail.dust} µg/m³` : "0 µg/m³"}
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-0.5">Particules en suspension</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Conseil agronomique personnalisé */}
-                <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl">
-                  <h5 className="font-bold text-emerald-400 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1">
-                    <Leaf size={13} /> Conseil Agronomique
-                  </h5>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    {selectedDayDetail.precipQty > 5
-                      ? "Précipitations notables prévues. Réduisez l'irrigation et surveillez l'apparition potentielle de maladies fongiques (mildiou/botrytis)."
-                      : selectedDayDetail.et0 > 4.5
-                      ? "Demande évaporative très forte (ET0 élevé). Un apport d'irrigation compensatoire est recommandé pour limiter le stress hydrique."
-                      : selectedDayDetail.dpv > 1.2
-                      ? "Déficit de pression de vapeur élevé. Les stomates risquent de se fermer durant l'après-midi pour réduire la transpiration."
-                      : "Conditions climatiques équilibrées propices à l'activité photosynthétique et aux interventions de terrain."}
-                  </p>
-                </div>
-              </div>
-
-              {/* Pied de Modale */}
-              <div className="p-3 bg-[#1a231d] border-t border-white/10 text-right">
-                <button
-                  type="button"
-                  onClick={() => setSelectedDayDetail(null)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                >
-                  Fermer
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <InfoModal 
-        isOpen={!!infoModal} 
-        onClose={() => setInfoModal(null)} 
-        title={infoModal?.title || ""} 
-        content={infoModal?.content || ""} 
-      />
     </div>
   );
 }
@@ -5002,18 +4378,6 @@ export default function App() {
         audioNotes: metadata.audioNotes || [],
         mediaNotes: metadata.mediaNotes || [],
         isDeletedByCreator: false,
-        weatherData: weather ? {
-          temp: weather.current?.temp,
-          humidity: weather.current?.humidity,
-          windSpeed: weather.current?.windSpeed,
-          precipitation: weather.current?.precipQty,
-          condition: weather.current?.condition,
-          vpd: weather.current?.vpd,
-          et0: weather.current?.et0,
-          uvIndex: weather.current?.uvIndex,
-          hazards: weather.hazards ? weather.hazards.map((h: any) => typeof h === 'string' ? h : h.title || h.summary) : [],
-          locationName: weather.locationName || metadata.domain || "",
-        } : null,
       };
 
       const docRef = await addDoc(
@@ -6031,7 +5395,7 @@ export default function App() {
       <div className="min-h-screen bg-[#0d120f] flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }} layout
+          animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-md bg-[#161c18] rounded-[40px] p-6 sm:p-10 shadow-2xl shadow-emerald-900/10 border border-emerald-500/20 text-center"
           dir={isArabic ? "rtl" : "ltr"}
         >
@@ -6086,53 +5450,38 @@ export default function App() {
       <LiquidBackground />
       <LiquidGlassSVG />
       
-      {/* Header - Liquid Glass Style */}
-      <LiquidHeader>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 backdrop-blur-md shadow-[0_4px_15px_rgba(16,185,129,0.12),inset_0_1px_1px_rgba(255,255,255,0.2)] cursor-pointer"
-            onClick={() => setActiveTab("scan")}
-          >
-            <div className="p-1 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-xs">
-              <Leaf size={14} className="stroke-[2.5]" />
-            </div>
-            <div className="flex flex-col justify-center min-w-0">
-              <h1 className="text-base sm:text-lg font-black tracking-tight flex items-center gap-1 text-slate-900 dark:text-white leading-none">
-                AgroScan <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">IA</span>
-              </h1>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <p className="text-[8.5px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-[0.14em] leading-none">
-                  AGRONOMIE
-                </p>
-                {firebaseStatus === "connected" && (
-                  <span
-                    className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"
-                    title="Firebase Connecté"
-                  ></span>
-                )}
-                {firebaseStatus === "offline" && (
-                  <span
-                    className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"
-                    title="Mode Hors-ligne (Actif)"
-                  ></span>
-                )}
-                {firebaseStatus === "error" && (
-                  <span
-                    className="w-1.5 h-1.5 bg-red-500 rounded-full"
-                    title="Erreur Firebase"
-                  ></span>
-                )}
-              </div>
-            </div>
-          </motion.div>
+      {/* Header */}
+      <header className="px-5 pb-3.5 pt-[calc(1.25rem+env(safe-area-inset-top))] bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-200">
+        <div className="flex flex-col justify-center min-w-0">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white leading-none">
+            AgroScan <span className="text-emerald-600 dark:text-emerald-400">IA</span>
+          </h1>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-[9px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-[0.12em]">
+              AGRONOMIE
+            </p>
+            {firebaseStatus === "connected" && (
+              <span
+                className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"
+                title="Firebase Connecté"
+              ></span>
+            )}
+            {firebaseStatus === "offline" && (
+              <span
+                className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"
+                title="Mode Hors-ligne (Actif)"
+              ></span>
+            )}
+            {firebaseStatus === "error" && (
+              <span
+                className="w-1.5 h-1.5 bg-red-500 rounded-full"
+                title="Erreur Firebase"
+              ></span>
+            )}
+          </div>
         </div>
-
         <div className="flex items-center gap-2 shrink-0">
-          <motion.button
-            whileHover={{ scale: 1.08, y: -1 }}
-            whileTap={{ scale: 0.92 }}
+          <button
             type="button"
             onClick={() => {
               setThemeMode((prev) => {
@@ -6141,7 +5490,7 @@ export default function App() {
                 return "system";
               });
             }}
-            className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/70 dark:bg-white/10 border border-slate-200/90 dark:border-white/15 backdrop-blur-xl flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-white/90 dark:hover:bg-white/20 hover:border-emerald-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-[0_4px_15px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] transition-all cursor-pointer"
+            className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all active:scale-95 group cursor-pointer"
             title={
               themeMode === "system"
                 ? `Thème : Automatique (${systemPrefersDark ? "Système Sombre" : "Système Clair"}) — Cliquer pour Mode Clair`
@@ -6153,22 +5502,19 @@ export default function App() {
           >
             {themeMode === "system" ? (
               <div className="relative flex items-center justify-center">
-                <Monitor size={16} className="text-emerald-600 dark:text-emerald-400" />
+                <Monitor size={18} className="text-emerald-600 dark:text-emerald-400" />
                 <span className="absolute -bottom-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-[#0d120f]" />
               </div>
             ) : themeMode === "light" ? (
-              <Sun size={16} className="text-amber-500" />
+              <Sun size={18} className="text-amber-500" />
             ) : (
-              <Moon size={16} className="text-indigo-400" />
+              <Moon size={18} className="text-indigo-400" />
             )}
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.08, y: -1 }}
-            whileTap={{ scale: 0.92 }}
+          </button>
+          <button
             type="button"
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/70 dark:bg-white/10 border border-slate-200/90 dark:border-white/15 backdrop-blur-xl flex items-center justify-center overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.4)] dark:shadow-[0_4px_15px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.2)] hover:border-emerald-500/40 cursor-pointer shrink-0 p-0.5 transition-all group"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center overflow-hidden hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0"
             title="Profil & Déconnexion"
             aria-label="Profil et déconnexion"
           >
@@ -6176,17 +5522,15 @@ export default function App() {
               <img
                 src={user.photoURL}
                 alt="Profil"
-                className="w-full h-full object-cover rounded-[14px]"
+                className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-full h-full rounded-[14px] bg-emerald-500/10 dark:bg-emerald-500/20 flex items-center justify-center">
-                <UserIcon size={16} className="text-emerald-600 dark:text-emerald-400" />
-              </div>
+              <UserIcon size={18} className="text-slate-600 dark:text-slate-400" />
             )}
-          </motion.button>
+          </button>
         </div>
-      </LiquidHeader>
+      </header>
 
       {/* Logout Confirmation Modal */}
       <AnimatePresence>
@@ -6352,11 +5696,11 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-3 sm:p-4 pb-[calc(8rem+env(safe-area-inset-bottom,0px))] scroll-smooth min-w-0">
+      <main className="flex-1 overflow-y-auto p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] scroll-smooth">
         {activeTab === "scan" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }} layout
+            animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
             {!analysis && (
@@ -6369,7 +5713,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-                <Suspense fallback={<div className="h-64 flex items-center justify-center text-emerald-500"><div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-500 border-t-transparent"></div></div>}>
                 <CameraView
                   onCapture={handleCapture}
                   isOnline={isOnline}
@@ -6386,7 +5729,6 @@ export default function App() {
                   proRequestMessage={userData?.proRequestMessage}
                   onRequestProAccess={handleRequestProAccess}
                 />
-                </Suspense>
 
                 {/* Google AI Edge Dashboard runs in the background */}
               </div>
@@ -7292,15 +6634,9 @@ export default function App() {
                   </p>
                 </div>
               ) : (
-                <AnimatePresence mode="popLayout">
-                  {filteredObservations.map((obs, index) => (
-                    <motion.div
-                      key={obs.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                filteredObservations.map((obs) => (
+                  <div
+                    key={obs.id}
                     className={`liquid-glass-card overflow-hidden transition-all duration-300 relative ${isSelectionMode && selectedIds.includes(obs.id) ? "ring-2 ring-emerald-500/50 scale-[0.98]" : "hover:scale-[1.01]"}`}
                     onClick={() =>
                       isSelectionMode ? toggleSelection(obs.id) : undefined
@@ -7439,9 +6775,8 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                  </motion.div>
-                ))}
-                </AnimatePresence>
+                  </div>
+                ))
               )}
             </div>
           </motion.div>
@@ -7459,7 +6794,6 @@ export default function App() {
             />
           </motion.div>
         )}
-
       </main>
 
       {/* Fullscreen Image Viewer */}
@@ -7477,7 +6811,6 @@ export default function App() {
             onRetry={handleRetryAnalysis}
             onDownload={handleDownloadImage}
             language={language}
-            weather={weather}
           />
         )}
       </AnimatePresence>
@@ -7602,7 +6935,7 @@ export default function App() {
         }
       />
 
-      <Suspense fallback={null}><ChatBot /></Suspense>
+      <ChatBot />
 
       {/* Bottom Navigation - Liquid Glass Style */}
       <LiquidTabBar
@@ -7689,7 +7022,6 @@ export default function App() {
           </AnimatePresence>
         </div>
       )}
-
 
 
     </main>
