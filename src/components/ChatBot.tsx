@@ -58,7 +58,7 @@ export const ChatBot: React.FC = () => {
       {/* Floating Action Button */}
       <button 
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-[calc(7.5rem+env(safe-area-inset-bottom))] right-4 md:right-6 md:bottom-24 w-14 h-14 bg-emerald-500/20 backdrop-blur-2xl border border-emerald-400/40 rounded-full flex items-center justify-center text-emerald-300 shadow-[0_10px_30px_rgba(16,185,129,0.35),inset_0_1px_1px_rgba(255,255,255,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 z-[90] ${isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
+        className={`fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 md:right-6 md:bottom-24 w-14 h-14 bg-emerald-500/20 backdrop-blur-2xl border border-emerald-400/40 rounded-full flex items-center justify-center text-emerald-300 shadow-[0_10px_30px_rgba(16,185,129,0.35),inset_0_1px_1px_rgba(255,255,255,0.4)] hover:scale-110 active:scale-95 transition-all duration-300 z-[90] ${isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
         aria-label="Ouvrir le ChatBot"
       >
         <MessageSquare size={24} className="fill-current drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />

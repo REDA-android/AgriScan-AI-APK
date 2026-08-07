@@ -315,7 +315,7 @@ export const LiquidTabBar = ({
 }) => {
   return (
     <nav
-      className={`fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-sm xl:max-w-md mx-auto bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-3xl border border-slate-200/90 dark:border-white/10 p-1.5 rounded-[2.2rem] flex justify-around items-center z-50 shadow-[0_12px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] ${className}`}
+      className={`fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-sm xl:max-w-md mx-auto bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-3xl border border-slate-200/90 dark:border-white/10 p-1 rounded-[2rem] flex justify-around items-center z-50 shadow-[0_12px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] ${className}`}
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
@@ -358,7 +358,7 @@ export const LiquidTabBar = ({
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
-            className={`relative flex flex-col items-center justify-center flex-1 max-w-[76px] h-12 z-10 transition-colors duration-200 outline-none cursor-pointer px-1 ${
+            className={`relative flex flex-col items-center justify-center flex-1 max-w-[70px] h-11 z-10 transition-colors duration-200 outline-none cursor-pointer px-1 ${
               isActive
                 ? "liquid-tab-bar-active text-emerald-600 dark:text-emerald-400"
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"

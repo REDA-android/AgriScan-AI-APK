@@ -131,6 +131,7 @@ import {
 import CameraView, { ProcessedImage } from "./components/CameraView";
 import MapView from "./components/MapView";
 import { ChatBot } from "./components/ChatBot";
+import { InfoModal } from "./components/InfoModal";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import {
   LiquidGlassSVG,
@@ -337,6 +338,7 @@ function ObservationDetail({
   if (!observation) return null;
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
   const [comments, setComments] = useState<any[]>(
     Array.isArray(observation.comments) ? observation.comments : []
   );
@@ -778,10 +780,10 @@ function ObservationDetail({
               phenotypicTraits: observation.phenotypicTraits,
             });
           }}
-          className="p-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
+          className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all font-bold text-[10px] uppercase tracking-wider"
           title="Télécharger le rapport PDF"
         >
-          <FileText size={20} />
+          <FileText size={16} /> Exporter PDF
         </button>
         {(isAdmin || observation.userId === auth.currentUser?.uid) && (
           <button
@@ -967,13 +969,7 @@ function ObservationDetail({
           <section className="space-y-4">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 relative group">
               <TrendingUp size={14} /> Phénologie (BBCH)
-              <Info size={12} className="text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors" />
-              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-[#0d120f] border border-white/10 shadow-xl rounded-xl z-50 pointer-events-none text-none normal-case tracking-normal">
-                <p className="text-[10px] text-slate-300 leading-relaxed font-normal">
-                  <strong className="text-emerald-400 block mb-1 uppercase tracking-widest">Échelle BBCH</strong>
-                  Système codé pour identifier les stades de développement phénologique des plantes (de la germination à la sénescence).
-                </p>
-              </div>
+              <Info size={16} className="text-slate-400 hover:text-emerald-400 cursor-pointer transition-colors" onClick={(e) => { e.stopPropagation(); setInfoModal({ title: "Échelle BBCH", content: "Système codé pour identifier les stades de développement phénologique des plantes (de la germination à la sénescence)." }); }} />
             </h4>
             <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
               <div className="flex items-center justify-between mb-2">
@@ -1397,6 +1393,12 @@ function ObservationDetail({
           </div>
         </section>
       </div>
+      <InfoModal 
+        isOpen={!!infoModal} 
+        onClose={() => setInfoModal(null)} 
+        title={infoModal?.title || ""} 
+        content={infoModal?.content || ""} 
+      />
     </motion.div>
   );
 }
@@ -1522,7 +1524,7 @@ function AdminView({
     const user = users.find((u) => u.uid === selectedUserId);
 
     return (
-      <div className="p-6 space-y-6 pb-32" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="p-6 space-y-6 pb-6" dir={isArabic ? "rtl" : "ltr"}>
         <header className="flex items-center gap-4">
           <button
             onClick={() => setSelectedUserId(null)}
@@ -1540,7 +1542,7 @@ function AdminView({
           </div>
         </header>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {userObs.map((obs) => (
             <div
               key={obs.id}
@@ -1593,7 +1595,7 @@ function AdminView({
   }
 
   return (
-    <div className="p-6 space-y-8 pb-32" dir={isArabic ? "rtl" : "ltr"}>
+    <div className="p-6 space-y-8 pb-6" dir={isArabic ? "rtl" : "ltr"}>
       <header className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black text-slate-200 tracking-tight">
@@ -1836,6 +1838,7 @@ function WeatherCard({
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [viewMode, setViewMode] = useState<"forecast" | "history">("forecast");
+  const [infoModal, setInfoModal] = useState<{ title: string; content: string } | null>(null);
   const [subTab, setSubTab] = useState<"meteo" | "windy">("meteo");
   const [windyOverlay, setWindyOverlay] = useState<"temp" | "rain" | "wind" | "clouds" | "gust">("temp");
 
@@ -1983,7 +1986,7 @@ function WeatherCard({
 
       <motion.div
         initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
+        animate={{ opacity: 1, y: 0 }} layout
         className="p-5 liquid-glass-card overflow-hidden relative"
       >
         <div className="absolute top-0 right-0 p-6 opacity-5 text-blue-400 pointer-events-none">
@@ -2054,20 +2057,7 @@ function WeatherCard({
                   fill={isCurrentSaved ? "currentColor" : "none"}
                 />
               </button>
-              <button
-                onClick={handleShareWeather}
-                className="p-1 rounded-full text-slate-400 hover:bg-white/5 transition-colors"
-                title="Partager la météo"
-              >
-                <Share2 size={14} />
-              </button>
-              <button
-                onClick={handleExportWeatherReport}
-                className="p-1 rounded-full text-slate-400 hover:bg-white/5 transition-colors"
-                title="Générer un rapport PDF"
-              >
-                <FileText size={14} />
-              </button>
+
             </div>
 
             {isSearching ? (
@@ -2186,6 +2176,23 @@ function WeatherCard({
                   </span>
                 </div>
               </div>
+              
+              <div className="flex items-center gap-2 mt-4">
+                <button
+                  onClick={handleExportWeatherReport}
+                  className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all font-bold text-[10px] uppercase tracking-wider"
+                  title="Télécharger le rapport PDF"
+                >
+                  <FileText size={16} /> Exporter PDF
+                </button>
+                <button
+                  onClick={handleShareWeather}
+                  className="flex-1 flex justify-center items-center gap-1.5 px-3 py-2.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-xl transition-all font-bold text-[10px] uppercase tracking-wider"
+                  title="Partager la météo"
+                >
+                  <Share2 size={16} /> Partager
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2273,13 +2280,7 @@ function WeatherCard({
           </select>
           {selectedIndicator === "dpv" && (
             <>
-              <Info size={16} className="text-slate-400 hover:text-emerald-400 cursor-pointer" />
-              <div className="absolute top-full right-0 mt-2 hidden group-hover:block w-64 p-3 bg-[#0d120f] border border-white/10 shadow-xl rounded-xl z-50 pointer-events-none normal-case tracking-normal">
-                <p className="text-[10px] text-slate-300 leading-relaxed font-normal">
-                  <strong className="text-emerald-400 block mb-1 uppercase tracking-widest">Déficit de Pression de Vapeur (DPV)</strong>
-                  Mesure la différence entre la quantité d'humidité dans l'air et la quantité maximale que l'air peut retenir à une température donnée. Un DPV optimal favorise la transpiration et l'absorption des nutriments.
-                </p>
-              </div>
+              <Info size={16} className="text-slate-400 hover:text-emerald-400 cursor-pointer" onClick={(e) => { e.stopPropagation(); setInfoModal({ title: "Déficit de Pression de Vapeur (DPV)", content: "Mesure la différence entre la quantité d'humidité dans l'air et la quantité maximale que l'air peut retenir à une température donnée. Un DPV optimal favorise la transpiration et l'absorption des nutriments." }); }} />
             </>
           )}
         </div>
@@ -2412,6 +2413,12 @@ function WeatherCard({
         )}
       </div>
     </motion.div>
+      <InfoModal 
+        isOpen={!!infoModal} 
+        onClose={() => setInfoModal(null)} 
+        title={infoModal?.title || ""} 
+        content={infoModal?.content || ""} 
+      />
     </div>
   );
 }
@@ -5395,8 +5402,8 @@ export default function App() {
       <div className="min-h-screen bg-[#0d120f] flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-[#161c18] rounded-[40px] p-10 shadow-2xl shadow-emerald-900/10 border border-emerald-500/20 text-center"
+          animate={{ opacity: 1, y: 0 }} layout
+          className="w-full max-w-md bg-[#161c18] rounded-[40px] p-6 sm:p-10 shadow-2xl shadow-emerald-900/10 border border-emerald-500/20 text-center"
           dir={isArabic ? "rtl" : "ltr"}
         >
           <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -5451,9 +5458,9 @@ export default function App() {
       <LiquidGlassSVG />
       
       {/* Header */}
-      <header className="px-5 pb-3.5 pt-[calc(1.25rem+env(safe-area-inset-top))] bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-200">
+      <header className="px-4 pb-2.5 pt-[calc(0.75rem+env(safe-area-inset-top))] bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-200">
         <div className="flex flex-col justify-center min-w-0">
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white leading-none">
+          <h1 className="text-lg sm:text-xl font-black tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white leading-none">
             AgroScan <span className="text-emerald-600 dark:text-emerald-400">IA</span>
           </h1>
           <div className="flex items-center gap-2 mt-1">
@@ -5490,7 +5497,7 @@ export default function App() {
                 return "system";
               });
             }}
-            className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all active:scale-95 group cursor-pointer"
+            className="relative w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all active:scale-95 group cursor-pointer"
             title={
               themeMode === "system"
                 ? `Thème : Automatique (${systemPrefersDark ? "Système Sombre" : "Système Clair"}) — Cliquer pour Mode Clair`
@@ -5502,19 +5509,19 @@ export default function App() {
           >
             {themeMode === "system" ? (
               <div className="relative flex items-center justify-center">
-                <Monitor size={18} className="text-emerald-600 dark:text-emerald-400" />
+                <Monitor size={16} className="text-emerald-600 dark:text-emerald-400" />
                 <span className="absolute -bottom-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full ring-2 ring-white dark:ring-[#0d120f]" />
               </div>
             ) : themeMode === "light" ? (
-              <Sun size={18} className="text-amber-500" />
+              <Sun size={16} className="text-amber-500" />
             ) : (
-              <Moon size={18} className="text-indigo-400" />
+              <Moon size={16} className="text-indigo-400" />
             )}
           </button>
           <button
             type="button"
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center overflow-hidden hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center overflow-hidden hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0"
             title="Profil & Déconnexion"
             aria-label="Profil et déconnexion"
           >
@@ -5526,7 +5533,7 @@ export default function App() {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <UserIcon size={18} className="text-slate-600 dark:text-slate-400" />
+              <UserIcon size={16} className="text-slate-600 dark:text-slate-400" />
             )}
           </button>
         </div>
@@ -5696,11 +5703,11 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] scroll-smooth">
+      <main className="flex-1 overflow-y-auto p-4 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] scroll-smooth">
         {activeTab === "scan" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ opacity: 1, y: 0 }} layout
             className="space-y-6"
           >
             {!analysis && (
@@ -5903,7 +5910,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="p-3 bg-[#0d120f] rounded-xl border border-white/5">
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">
                         Famille
@@ -6351,7 +6358,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="space-y-6 pb-24"
+            className="space-y-6 pb-6"
           >
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-200">{t.catalog}</h2>
@@ -6572,7 +6579,7 @@ export default function App() {
 
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               {isObservationsLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <motion.div
@@ -6625,7 +6632,7 @@ export default function App() {
                   </motion.div>
                 ))
               ) : filteredObservations.length === 0 ? (
-                <div className="col-span-2 py-20 text-center">
+                <div className="col-span-1 sm:col-span-2 py-20 text-center">
                   <div className="w-16 h-16 bg-[#0d120f] rounded-full flex items-center justify-center mx-auto mb-4">
                     <Search className="text-slate-300" size={32} />
                   </div>
@@ -6634,9 +6641,15 @@ export default function App() {
                   </p>
                 </div>
               ) : (
-                filteredObservations.map((obs) => (
-                  <div
-                    key={obs.id}
+                <AnimatePresence mode="popLayout">
+                  {filteredObservations.map((obs, index) => (
+                    <motion.div
+                      key={obs.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
                     className={`liquid-glass-card overflow-hidden transition-all duration-300 relative ${isSelectionMode && selectedIds.includes(obs.id) ? "ring-2 ring-emerald-500/50 scale-[0.98]" : "hover:scale-[1.01]"}`}
                     onClick={() =>
                       isSelectionMode ? toggleSelection(obs.id) : undefined
@@ -6775,8 +6788,9 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  </motion.div>
+                ))}
+                </AnimatePresence>
               )}
             </div>
           </motion.div>
@@ -6794,6 +6808,7 @@ export default function App() {
             />
           </motion.div>
         )}
+
       </main>
 
       {/* Fullscreen Image Viewer */}
@@ -7022,6 +7037,7 @@ export default function App() {
           </AnimatePresence>
         </div>
       )}
+
 
 
     </main>

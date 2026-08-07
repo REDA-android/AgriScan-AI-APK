@@ -866,7 +866,7 @@ export default function MapView({
 
         {/* Active Overlay Color Legend (Bottom Left) */}
         {overlayType !== 'none' && (
-          <div className="absolute bottom-6 left-3 bg-[#121814]/95 backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl border border-white/10 z-[1000] text-[9px] font-bold uppercase tracking-wider space-y-1.5 min-w-[130px] pointer-events-auto light-mode-map-btn">
+          <div className="absolute bottom-[calc(6rem+env(safe-area-inset-bottom))] left-3 bg-[#121814]/95 backdrop-blur-xl p-2.5 rounded-2xl shadow-2xl border border-white/10 z-[1000] text-[9px] font-bold uppercase tracking-wider space-y-1.5 min-w-[130px] pointer-events-auto light-mode-map-btn">
             <p className="text-slate-400 text-[8px] border-b border-white/10 pb-1 flex items-center justify-between map-control-text">
               <span>Légende {overlayType === 'health' ? 'Santé' : 'Densité'}</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>

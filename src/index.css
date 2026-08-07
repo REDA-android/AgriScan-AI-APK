@@ -771,3 +771,8 @@ button, a {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* Leaflet bottom controls (like attribution) offset for TabBar */
+.leaflet-bottom {
+  bottom: calc(5rem + env(safe-area-inset-bottom)) !important;
+}
