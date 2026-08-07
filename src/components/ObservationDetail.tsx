@@ -11,6 +11,7 @@ interface ObservationDetailProps {
   onReset: (id: string) => void;
   onSaveNotes: (id: string, notes: string) => void;
   t: any;
+  weather?: any;
 }
 
 const ObservationDetail: React.FC<ObservationDetailProps> = ({
@@ -19,7 +20,8 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
   onDelete,
   onReset,
   onSaveNotes,
-  t
+  t,
+  weather,
 }) => {
   const [notes, setNotes] = React.useState(observation.userNotes || '');
   const [isEditingNotes, setIsEditingNotes] = React.useState(false);
@@ -283,8 +285,8 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
                 variete: observation.variety,
                 siteName: observation.domain,
                 plotName: observation.plot,
-                latitude: observation.latitude,
-                longitude: observation.longitude,
+                latitude: observation.latitude || observation.location?.lat,
+                longitude: observation.longitude || observation.location?.lng,
                 diagnosis: {
                   primaryDisease: observation.analysis?.diseaseName,
                   healthStatus: observation.status === "completed" ? (observation.analysis?.severity === "CRITICAL" ? "critical" : observation.analysis?.severity === "WARNING" ? "warning" : "healthy") : "healthy",
@@ -293,7 +295,20 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
                   treatments: observation.analysis?.biologicalTreatments || observation.analysis?.treatment,
                 },
                 notes: observation.userNotes,
-                images: observation.images,
+                images: observation.images || observation.imageUrls || (observation.imageUrl ? [observation.imageUrl] : []),
+                phenotypicTraits: observation.phenotypicTraits,
+                weather: observation.weatherData || (weather ? {
+                  temp: weather.current?.temp,
+                  humidity: weather.current?.humidity,
+                  windSpeed: weather.current?.windSpeed,
+                  precipitation: weather.current?.precipQty ?? weather.current?.precip,
+                  condition: weather.current?.condition,
+                  vpd: weather.current?.vpd,
+                  et0: weather.current?.et0,
+                  uvIndex: weather.current?.uvIndex,
+                  hazards: weather.hazards ? weather.hazards.map((h: any) => typeof h === 'string' ? h : h.title || h.summary) : [],
+                  locationName: weather.locationName || observation.domain,
+                } : undefined),
               });
             }}
             className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm"

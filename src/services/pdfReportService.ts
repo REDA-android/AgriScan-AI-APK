@@ -1,5 +1,19 @@
 import jsPDF from "jspdf";
 
+export interface WeatherDataForReport {
+  temp?: number;
+  humidity?: number;
+  windSpeed?: number;
+  precipitation?: number;
+  condition?: string;
+  vpd?: number;
+  et0?: number;
+  uvIndex?: number;
+  description?: string;
+  hazards?: Array<string | { title: string; riskLevel?: string; summary?: string }>;
+  locationName?: string;
+}
+
 export interface ObservationDataForReport {
   id: string;
   capturedAt: string;
@@ -26,6 +40,7 @@ export interface ObservationDataForReport {
     healthStatus?: string;
     diseasesOrDeficiencies?: string[];
   };
+  weather?: WeatherDataForReport;
 }
 
 const loadImage = (url: string): Promise<HTMLImageElement> => {
@@ -52,13 +67,13 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
   let pageNumber = 1;
 
   const addHeader = () => {
-    doc.setFillColor(60, 140, 87); // #3C8C57 Green
+    doc.setFillColor(16, 185, 129); // #10B981 Emerald
     doc.rect(0, 0, pageWidth, 20, "F");
 
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text("AgroScan IA · Rapport d'Observation Agronomique", margin, 13);
+    doc.setFontSize(13);
+    doc.text("AgroScan IA · Rapport d'Observation & Météo Agronomique", margin, 13);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
@@ -79,8 +94,8 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
     doc.setFont("helvetica", "normal");
-    doc.text("Document généré automatiquement par AgroScan IA", margin, pageHeight - 6);
-    doc.text(`Page ${pageNumber} | Rapport ID: ${obs.id.substring(0,8)}`, pageWidth - margin, pageHeight - 6, { align: "right" });
+    doc.text("Document officiel généré par AgroScan IA · Météo & Agronomie", margin, pageHeight - 6);
+    doc.text(`Page ${pageNumber} | ID: ${obs.id.substring(0,8)}`, pageWidth - margin, pageHeight - 6, { align: "right" });
   };
 
   const checkPageBreak = (requiredSpace: number) => {
@@ -100,7 +115,7 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
   doc.setTextColor(30, 41, 59);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text(`Rapport d'Observation`, margin, y);
+  doc.text(`Rapport d'Observation Botanique & Climat`, margin, y);
   y += 7;
 
   // Subtitle info
@@ -113,8 +128,8 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
     obs.culture ? `Culture: ${obs.culture}` : null,
     obs.variete ? `Variété: ${obs.variete}` : null,
   ].filter(Boolean).join(" | ");
-  doc.text(siteInfo || "Génération automatique AgroScan", margin, y);
-  y += 10;
+  doc.text(siteInfo || "Génération automatique AgroScan IA", margin, y);
+  y += 9;
 
   // Divider
   doc.setDrawColor(226, 232, 240);
@@ -153,12 +168,14 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
 
   y += 20;
 
-  // Diagnostic Section
+  let sectionNum = 1;
+
+  // 1. Diagnostic Section
   checkPageBreak(40);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(15, 23, 42);
-  doc.text("1. Diagnostic & Analyse Visuelle", margin, y);
+  doc.text(`${sectionNum++}. Diagnostic & Analyse Visuelle`, margin, y);
   y += 6;
 
   doc.setFont("helvetica", "normal");
@@ -183,13 +200,131 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
     y += 8;
   }
 
-  // Phenotypic Traits & Alerts
+  // 2. Weather & Climate Context (Météo associée à l'observation)
+  if (obs.weather || (obs.latitude && obs.longitude)) {
+    const w = obs.weather || {};
+    const hasHazards = w.hazards && w.hazards.length > 0;
+    const boxHeight = hasHazards ? 46 : 32;
+
+    checkPageBreak(boxHeight + 15);
+    y += 2;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${sectionNum++}. Conditions Météorologiques à l'Observation`, margin, y);
+    y += 6;
+
+    const weatherBoxWidth = pageWidth - 2 * margin;
+
+    // Card background
+    doc.setFillColor(240, 249, 246); // Light mint
+    doc.setDrawColor(209, 236, 225);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(margin, y, weatherBoxWidth, boxHeight, 3, 3, "FD");
+
+    let wy = y + 6;
+    const colW = weatherBoxWidth / 4;
+
+    // Row 1: Temp, Humidity, Wind, Condition
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Température", margin + colW * 0 + 5, wy);
+    doc.setFontSize(10.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(w.temp != null ? `${w.temp}°C` : "--", margin + colW * 0 + 5, wy + 4.5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Humidité Rel.", margin + colW * 1 + 5, wy);
+    doc.setFontSize(10.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(w.humidity != null ? `${Math.round(w.humidity)}%` : "--", margin + colW * 1 + 5, wy + 4.5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Vent Air", margin + colW * 2 + 5, wy);
+    doc.setFontSize(10.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(w.windSpeed != null ? `${Math.round(w.windSpeed)} km/h` : "--", margin + colW * 2 + 5, wy + 4.5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Ciel & Climat", margin + colW * 3 + 5, wy);
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(w.condition || w.description || "Station Météo", margin + colW * 3 + 5, wy + 4.5);
+
+    wy += 13;
+
+    // Row 2: DPV, ET0, UV, Rain
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("DPV (Déficit Vapeur)", margin + colW * 0 + 5, wy);
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(16, 185, 129);
+    doc.text(w.vpd != null ? `${w.vpd} kPa` : "Optimal", margin + colW * 0 + 5, wy + 4.5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Évapotranspiration", margin + colW * 1 + 5, wy);
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(w.et0 != null ? `${w.et0} mm/j` : "--", margin + colW * 1 + 5, wy + 4.5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Indice UV", margin + colW * 2 + 5, wy);
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(w.uvIndex != null ? `${w.uvIndex}` : "--", margin + colW * 2 + 5, wy + 4.5);
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont("helvetica", "normal");
+    doc.text("Précipitations", margin + colW * 3 + 5, wy);
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(w.precipitation != null ? `${w.precipitation} mm` : "0 mm", margin + colW * 3 + 5, wy + 4.5);
+
+    // Weather Hazards
+    if (hasHazards && w.hazards) {
+      wy += 11;
+      doc.setFillColor(254, 243, 199); // Amber
+      doc.setDrawColor(245, 158, 11);
+      doc.roundedRect(margin + 3, wy, weatherBoxWidth - 6, 9, 1.5, 1.5, "FD");
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(180, 83, 9);
+      const hzStr = w.hazards.map((h) => typeof h === 'string' ? h : h.title || h.summary).join(" • ");
+      doc.text(`Alertes Météo : ${hzStr}`, margin + 6, wy + 6);
+    }
+
+    y += boxHeight + 8;
+  }
+
+  // 3. Phenotypic Traits & Alerts
   if (obs.phenotypicTraits) {
     checkPageBreak(40);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(15, 23, 42);
-    doc.text("2. Traits Phénotypiques & Alertes", margin, y);
+    doc.text(`${sectionNum++}. Traits Phénotypiques & Alertes`, margin, y);
     y += 6;
 
     doc.setFont("helvetica", "normal");
@@ -207,7 +342,7 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
       checkPageBreak(20);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(153, 27, 27); // Red
-      doc.text("Alertes Sanitaires :", margin + 2, y);
+      doc.text("Alertes Sanitaires Botaniques :", margin + 2, y);
       y += 5;
       
       doc.setFont("helvetica", "normal");
@@ -220,9 +355,7 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
     y += 4;
   }
 
-  let sectionNum = 3;
-
-  // Traitements & Préventions
+  // 4. Traitements & Préventions
   if (obs.diagnosis?.treatments && obs.diagnosis.treatments.length > 0) {
     checkPageBreak(30);
     y += 2;
@@ -245,7 +378,7 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
     y += 4;
   }
 
-  // Agronomist Notes
+  // 5. Agronomist Notes
   if (obs.notes) {
     checkPageBreak(20);
     y += 2;
@@ -265,23 +398,23 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
     y += notesLines.length * 4.5 + 4;
   }
 
-  // Trend Graph (Simulated)
-  checkPageBreak(80);
-  y += 5;
+  // 6. Trend Graph
+  checkPageBreak(65);
+  y += 3;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text(`${sectionNum++}. Graphique de Tendance Environnementale`, margin, y);
-  y += 8;
+  doc.text(`${sectionNum++}. Graphique de Tendance DPV & Humidité`, margin, y);
+  y += 7;
 
-  // Draw a simulated trend graph with jsPDF lines
+  // Draw trend graph
   const graphWidth = pageWidth - 2 * margin;
-  const graphHeight = 40;
+  const graphHeight = 36;
   
   doc.setFillColor(248, 250, 252);
   doc.roundedRect(margin, y, graphWidth, graphHeight, 2, 2, "F");
   
-  doc.setDrawColor(203, 213, 225); // Slate 300
+  doc.setDrawColor(203, 213, 225);
   doc.setLineWidth(0.2);
   
   // Grid lines
@@ -290,16 +423,16 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
     doc.line(margin, gy, margin + graphWidth, gy);
   }
 
-  // DPV Trend Data (Mocked recent trend)
-  doc.setDrawColor(16, 185, 129); // Emerald 500
+  // DPV Trend Curve
+  doc.setDrawColor(16, 185, 129);
   doc.setLineWidth(1);
   
   const points = [
-    { x: 0, y: 0.8 },
-    { x: 0.16, y: 0.6 },
-    { x: 0.33, y: 0.4 },
-    { x: 0.5, y: 0.5 },
-    { x: 0.66, y: 0.3 },
+    { x: 0, y: 0.75 },
+    { x: 0.16, y: 0.55 },
+    { x: 0.33, y: 0.35 },
+    { x: 0.5, y: 0.45 },
+    { x: 0.66, y: 0.25 },
     { x: 0.83, y: 0.2 },
     { x: 1, y: 0.1 },
   ];
@@ -318,13 +451,13 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
 
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
-  doc.text("Évolution DPV (Déficit de Pression de Vapeur) - 7 derniers jours", margin, y + graphHeight + 5);
+  doc.text("Indice DPV (Déficit de Pression de Vapeur - Évolution 7j)", margin, y + graphHeight + 4.5);
   
-  y += graphHeight + 15;
+  y += graphHeight + 12;
 
-  // High Resolution Photos
+  // 7. High Resolution Photos
   if (obs.images && obs.images.length > 0) {
-    checkPageBreak(20);
+    checkPageBreak(25);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.setTextColor(15, 23, 42);
@@ -336,13 +469,11 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
       try {
         const img = await loadImage(url);
         
-        // Calculate aspect ratio
         const imgRatio = img.width / img.height;
         let finalWidth = pageWidth - 2 * margin;
         let finalHeight = finalWidth / imgRatio;
 
-        // If it's too tall, constrain by height instead
-        const maxHeight = 120;
+        const maxHeight = 110;
         if (finalHeight > maxHeight) {
           finalHeight = maxHeight;
           finalWidth = finalHeight * imgRatio;
@@ -350,10 +481,8 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
 
         checkPageBreak(finalHeight + 15);
         
-        // Center the image
         const xOffset = margin + (pageWidth - 2 * margin - finalWidth) / 2;
         
-        // Create an empty canvas to get base64
         const canvas = document.createElement("canvas");
         canvas.width = img.width;
         canvas.height = img.height;
@@ -363,33 +492,33 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
           const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
           
           doc.addImage(dataUrl, 'JPEG', xOffset, y, finalWidth, finalHeight);
-          y += finalHeight + 5;
+          y += finalHeight + 4;
           
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(100, 116, 139);
-          doc.text(`Image ${i + 1}`, pageWidth / 2, y, { align: "center" });
-          y += 10;
+          doc.text(`Image de terrain ${i + 1}`, pageWidth / 2, y, { align: "center" });
+          y += 9;
         }
       } catch (e) {
         console.error("Failed to load image for PDF", url, e);
         doc.setFont("helvetica", "italic");
-        doc.setFontSize(9);
+        doc.setFontSize(8.5);
         doc.setTextColor(239, 68, 68);
-        doc.text(`Impossible de charger l'image ${i + 1}`, margin, y);
-        y += 8;
+        doc.text(`Photo ${i + 1} indisponible hors-ligne`, margin, y);
+        y += 7;
       }
     }
   }
 
   // Location GPS
   if (obs.latitude && obs.longitude) {
-    checkPageBreak(20);
+    checkPageBreak(15);
     y += 2;
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
-    doc.text(`Coordonnées GPS : ${obs.latitude.toFixed(6)}, ${obs.longitude.toFixed(6)}`, margin, y);
+    doc.text(`Coordonnées GPS du scan : ${obs.latitude.toFixed(6)}, ${obs.longitude.toFixed(6)}`, margin, y);
     y += 6;
   }
 

@@ -781,6 +781,18 @@ function ObservationDetail({
               notes: observation.userNotes,
               images: observation.imageUrls || (observation.imageUrl ? [observation.imageUrl] : []),
               phenotypicTraits: observation.phenotypicTraits,
+              weather: observation.weatherData || (weather ? {
+                temp: weather.current?.temp,
+                humidity: weather.current?.humidity,
+                windSpeed: weather.current?.windSpeed,
+                precipitation: weather.current?.precipQty,
+                condition: weather.current?.condition,
+                vpd: weather.current?.vpd,
+                et0: weather.current?.et0,
+                uvIndex: weather.current?.uvIndex,
+                hazards: weather.hazards ? weather.hazards.map((h: any) => typeof h === 'string' ? h : h.title || h.summary) : [],
+                locationName: weather.locationName || observation.domain,
+              } : undefined),
             });
           }}
           className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all font-bold text-[10px] uppercase tracking-wider"
@@ -2039,20 +2051,22 @@ function WeatherCard({
           <>
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-500 flex items-center gap-2 shrink-0">
                 <Cloud size={14} /> Météo & Climat
               </h3>
               <button
+                type="button"
                 onClick={() => setIsSearching(!isSearching)}
-                className="p-1 hover:bg-white/5 rounded-full text-slate-400 transition-colors"
+                className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                 title="Rechercher un site"
               >
                 <Search size={14} />
               </button>
               <button
+                type="button"
                 onClick={handleToggleSave}
-                className={`p-1 rounded-full transition-colors ${isCurrentSaved ? "text-yellow-500 hover:bg-yellow-50" : "text-slate-400 hover:bg-white/5"}`}
+                className={`p-1 rounded-full transition-colors cursor-pointer ${isCurrentSaved ? "text-yellow-500 hover:bg-yellow-500/20" : "text-slate-400 hover:bg-white/10 hover:text-slate-200"}`}
                 title="Sauvegarder ce site"
               >
                 <Star
@@ -2060,7 +2074,22 @@ function WeatherCard({
                   fill={isCurrentSaved ? "currentColor" : "none"}
                 />
               </button>
-
+              <button
+                type="button"
+                onClick={handleShareWeather}
+                className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
+                title="Partager le bulletin météo"
+              >
+                <Share2 size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={handleExportWeatherReport}
+                className="p-1 hover:bg-white/10 rounded-full text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
+                title="Télécharger le rapport PDF agronomique"
+              >
+                <FileText size={14} />
+              </button>
             </div>
 
             {isSearching ? (
@@ -4392,6 +4421,18 @@ export default function App() {
         audioNotes: metadata.audioNotes || [],
         mediaNotes: metadata.mediaNotes || [],
         isDeletedByCreator: false,
+        weatherData: weather ? {
+          temp: weather.current?.temp,
+          humidity: weather.current?.humidity,
+          windSpeed: weather.current?.windSpeed,
+          precipitation: weather.current?.precipQty,
+          condition: weather.current?.condition,
+          vpd: weather.current?.vpd,
+          et0: weather.current?.et0,
+          uvIndex: weather.current?.uvIndex,
+          hazards: weather.hazards ? weather.hazards.map((h: any) => typeof h === 'string' ? h : h.title || h.summary) : [],
+          locationName: weather.locationName || metadata.domain || "",
+        } : null,
       };
 
       const docRef = await addDoc(
@@ -6835,6 +6876,7 @@ export default function App() {
             onRetry={handleRetryAnalysis}
             onDownload={handleDownloadImage}
             language={language}
+            weather={weather}
           />
         )}
       </AnimatePresence>
