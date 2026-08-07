@@ -578,7 +578,7 @@ body.light-mode .map-modal-select option {
   color: #0f172a !important;
 }
 
-body.light-mode .map-modal-[#121814] {
+body.light-mode .map-modal-\[\#121814\] {
   background-color: #ffffff !important;
 }
 
@@ -613,12 +613,12 @@ body.light-mode .map-modal-footer {
   border-color: #f1f5f9 !important;
 }
 
-body.light-mode .map-modal-[#2d6a4f]-btn {
+body.light-mode .map-modal-\[\#2d6a4f\]-btn {
   background-color: #10b981 !important;
   color: #ffffff !important;
 }
 
-body.light-mode .map-modal-[#2d6a4f]-btn:hover {
+body.light-mode .map-modal-\[\#2d6a4f\]-btn:hover {
   background-color: #059669 !important;
 }
 
