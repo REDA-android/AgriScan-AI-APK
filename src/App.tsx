@@ -132,6 +132,7 @@ import CameraView, { ProcessedImage } from "./components/CameraView";
 import MapView from "./components/MapView";
 import { ChatBot } from "./components/ChatBot";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { WeatherShareModal } from "./components/WeatherShareModal";
 import {
   LiquidGlassSVG,
   LiquidBackground,
@@ -309,6 +310,13 @@ interface WeatherInfo {
   lon?: number;
   extras?: any;
   isFallback?: boolean;
+  hourly?: {
+    time: string[];
+    temp: number[];
+    humidity: number[];
+    dpv: number[];
+    precipitation: number[];
+  };
 }
 
 function ObservationDetail({
@@ -1522,7 +1530,7 @@ function AdminView({
     const user = users.find((u) => u.uid === selectedUserId);
 
     return (
-      <div className="p-6 space-y-6 pb-6" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="p-6 space-y-6 pb-32" dir={isArabic ? "rtl" : "ltr"}>
         <header className="flex items-center gap-4">
           <button
             onClick={() => setSelectedUserId(null)}
@@ -1540,7 +1548,7 @@ function AdminView({
           </div>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {userObs.map((obs) => (
             <div
               key={obs.id}
@@ -1593,7 +1601,7 @@ function AdminView({
   }
 
   return (
-    <div className="p-6 space-y-8 pb-6" dir={isArabic ? "rtl" : "ltr"}>
+    <div className="p-6 space-y-8 pb-32" dir={isArabic ? "rtl" : "ltr"}>
       <header className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-black text-slate-200 tracking-tight">
@@ -1838,6 +1846,7 @@ function WeatherCard({
   const [viewMode, setViewMode] = useState<"forecast" | "history">("forecast");
   const [subTab, setSubTab] = useState<"meteo" | "windy">("meteo");
   const [windyOverlay, setWindyOverlay] = useState<"temp" | "rain" | "wind" | "clouds" | "gust">("temp");
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     if (weather && weather.current) {
@@ -1880,11 +1889,16 @@ function WeatherCard({
 
   if (!weather || !weather.current || !weather.forecast) return null;
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  const todayIndex = weather.forecast.findIndex((d) => d.date === todayStr);
-  const splitIndex = todayIndex !== -1 ? todayIndex : 31;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const todayStr = `${year}-${month}-${day}`;
 
-  const historyData = weather.forecast.slice(0, splitIndex);
+  const todayIndex = weather.forecast.findIndex((d) => d.date === todayStr);
+  const splitIndex = todayIndex !== -1 ? todayIndex : Math.max(0, weather.forecast.length - 16);
+
+  const historyData = weather.forecast.slice(0, splitIndex + 1);
   const forecastData = weather.forecast.slice(splitIndex);
 
   const displayData = viewMode === "forecast" ? forecastData : historyData;
@@ -1907,20 +1921,7 @@ function WeatherCard({
   );
 
   const handleShareWeather = async () => {
-    const text = `Prévisions météo pour ${weather.locationName || 'ce site'} : ${weather.current.temp}°C, ${weather.current.condition}. (via AgroScan IA)`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Météo AgroScan',
-          text: text,
-        });
-      } catch (err) {
-        console.error("Erreur de partage:", err);
-      }
-    } else {
-      navigator.clipboard.writeText(text);
-      alert("Copié dans le presse-papier !");
-    }
+    setShowShareModal(true);
   };
 
   const handleExportWeatherReport = async () => {
@@ -2296,13 +2297,15 @@ function WeatherCard({
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="#f1f5f9"
+                stroke="rgba(255,255,255,0.1)"
               />
               <XAxis
                 dataKey="date"
-                fontSize={8}
+                fontSize={9}
                 tickMargin={5}
-                minTickGap={20}
+                minTickGap={15}
+                stroke="#64748b"
+                tick={{ fill: "#94a3b8" }}
                 tickFormatter={(val) => {
                   const parts = val.split("-");
                   return parts.length === 3 ? `${parts[2]}/${parts[1]}` : val;
@@ -2311,12 +2314,16 @@ function WeatherCard({
               <YAxis hide domain={["auto", "auto"]} />
               <Tooltip
                 contentStyle={{
+                  backgroundColor: "#0d120f",
+                  borderColor: "rgba(255,255,255,0.15)",
                   borderRadius: "12px",
-                  border: "none",
-                  boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                  fontSize: "10px",
+                  color: "#f8fafc",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.5)",
+                  fontSize: "11px",
                   fontWeight: "bold",
                 }}
+                labelStyle={{ color: "#94a3b8" }}
+                itemStyle={{ color: currentIndicator.color }}
                 labelFormatter={(label) => `Date: ${label}`}
                 formatter={(value: any) => [
                   `${value} ${currentIndicator.unit}`,
@@ -2328,10 +2335,11 @@ function WeatherCard({
                 dataKey={selectedIndicator}
                 stroke={currentIndicator.color}
                 strokeWidth={3}
-                dot={{ r: 0 }}
+                dot={{ r: 2, fill: currentIndicator.color }}
                 activeDot={{
-                  r: 5,
-                  strokeWidth: 0,
+                  r: 6,
+                  strokeWidth: 2,
+                  stroke: "#0d120f",
                   fill: currentIndicator.color,
                 }}
               />
@@ -2412,6 +2420,13 @@ function WeatherCard({
         )}
       </div>
     </motion.div>
+
+      {showShareModal && (
+        <WeatherShareModal
+          weather={weather}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -3306,7 +3321,7 @@ export default function App() {
 
       let weatherData = null;
       try {
-        const directRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${locationLat}&longitude=${locationLng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,precipitation,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,et0_fao_evapotranspiration,shortwave_radiation_sum,uv_index_max&past_days=31&forecast_days=16&timezone=auto`);
+        const directRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${locationLat}&longitude=${locationLng}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,precipitation,uv_index&hourly=temperature_2m,relative_humidity_2m,vapour_pressure_deficit,precipitation&daily=weather_code,temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,et0_fao_evapotranspiration,shortwave_radiation_sum,uv_index_max&past_days=31&forecast_days=16&timezone=auto`);
         if (directRes.ok) {
           weatherData = await directRes.json();
           weatherData.extras = {};
@@ -3463,6 +3478,35 @@ export default function App() {
 
       const agriculturalHazards = computeAgriculturalHazards(forecastArray, locName);
 
+      let hourlyForToday = undefined;
+      if (weatherData.hourly && weatherData.hourly.time) {
+        const hTimes: string[] = [];
+        const hTemps: number[] = [];
+        const hHums: number[] = [];
+        const hDpvs: number[] = [];
+        const hPrecips: number[] = [];
+
+        weatherData.hourly.time.forEach((tStr: string, idx: number) => {
+          if (tStr.startsWith(todayStr)) {
+            hTimes.push(tStr.split("T")[1] || tStr);
+            hTemps.push(weatherData.hourly.temperature_2m?.[idx] ?? 0);
+            hHums.push(weatherData.hourly.relative_humidity_2m?.[idx] ?? 0);
+            hDpvs.push(weatherData.hourly.vapour_pressure_deficit?.[idx] ?? 0);
+            hPrecips.push(weatherData.hourly.precipitation?.[idx] ?? 0);
+          }
+        });
+
+        if (hTimes.length > 0) {
+          hourlyForToday = {
+            time: hTimes,
+            temp: hTemps,
+            humidity: hHums,
+            dpv: hDpvs,
+            precipitation: hPrecips,
+          };
+        }
+      }
+
       const finalData: WeatherInfo = {
         locationName: locName,
         region: locRegion,
@@ -3494,6 +3538,7 @@ export default function App() {
         hazards: agriculturalHazards,
         extras: weatherData.extras,
         isFallback: weatherData.isFallback,
+        hourly: hourlyForToday,
       };
 
       setWeather(finalData);
@@ -5355,7 +5400,7 @@ export default function App() {
         </motion.div>
 
         {/* Notifications UI */}
-        <div className="fixed bottom-10 left-0 right-0 p-4 z-[200] flex flex-col gap-2 pointer-events-none items-center w-full">
+        <div className="fixed bottom-10 left-0 right-0 p-4 z-[200] flex flex-col gap-2 pointer-events-none items-center max-w-md mx-auto">
           <AnimatePresence>
             {appNotifications.map((n) => (
               <motion.div
@@ -5396,7 +5441,7 @@ export default function App() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-[#161c18] rounded-[40px] p-6 sm:p-10 shadow-2xl shadow-emerald-900/10 border border-emerald-500/20 text-center"
+          className="w-full max-w-md bg-[#161c18] rounded-[40px] p-10 shadow-2xl shadow-emerald-900/10 border border-emerald-500/20 text-center"
           dir={isArabic ? "rtl" : "ltr"}
         >
           <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -5444,7 +5489,7 @@ export default function App() {
 
   return (
     <main
-      className="h-[100dvh] overflow-hidden bg-[#0d120f] text-slate-300 font-sans flex flex-col w-full shadow-2xl relative safe-area-bottom"
+      className="h-[100dvh] overflow-hidden bg-[#0d120f] text-slate-300 font-sans flex flex-col max-w-md mx-auto shadow-2xl border-x border-white/5 relative safe-area-bottom"
       dir={isArabic ? "rtl" : "ltr"}
     >
       <LiquidBackground />
@@ -5539,7 +5584,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 w-full"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 border-x border-white/5 max-w-md mx-auto"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -5903,7 +5948,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="p-3 bg-[#0d120f] rounded-xl border border-white/5">
                       <p className="text-[10px] text-slate-400 uppercase font-bold mb-1">
                         Famille
@@ -6351,7 +6396,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="space-y-6 pb-6"
+            className="space-y-6 pb-24"
           >
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-200">{t.catalog}</h2>
@@ -6464,12 +6509,6 @@ export default function App() {
                   >
                     {t.custom}
                   </button>
-                  <button
-                    onClick={() => setQuickFilter("favorites")}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center gap-1 ${quickFilter === "favorites" ? "bg-amber-500/20 text-amber-500 font-extrabold border border-amber-500/30 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]" : "liquid-glass-tab-btn-inactive"}`}
-                  >
-                    <Star size={12} className={quickFilter === "favorites" ? "fill-amber-500" : ""} /> Favoris
-                  </button>
                 </div>
 
                 {quickFilter === "custom" && (
@@ -6572,7 +6611,7 @@ export default function App() {
 
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 gap-4">
               {isObservationsLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <motion.div
@@ -6625,7 +6664,7 @@ export default function App() {
                   </motion.div>
                 ))
               ) : filteredObservations.length === 0 ? (
-                <div className="col-span-1 sm:col-span-2 py-20 text-center">
+                <div className="col-span-2 py-20 text-center">
                   <div className="w-16 h-16 bg-[#0d120f] rounded-full flex items-center justify-center mx-auto mb-4">
                     <Search className="text-slate-300" size={32} />
                   </div>
@@ -6985,7 +7024,7 @@ export default function App() {
 
       {/* Notifications UI */}
       {appNotifications.length > 0 && (
-        <div className="fixed bottom-20 sm:bottom-24 left-0 right-0 p-4 z-[9999] flex flex-col gap-2 pointer-events-none items-center w-full">
+        <div className="fixed bottom-20 sm:bottom-24 left-0 right-0 p-4 z-[9999] flex flex-col gap-2 pointer-events-none items-center max-w-md mx-auto">
           <AnimatePresence>
             {appNotifications.map((n) => (
               <motion.div

@@ -218,7 +218,7 @@ export async function fetchDustData(lat: number, lng: number): Promise<Record<st
   const dailyDustMap: Record<string, number> = {};
   try {
     const res = await fetch(
-      `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=dust&forecast_days=7&domains=cams_global&timezone=auto`
+      `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&hourly=dust&past_days=31&forecast_days=16&domains=cams_global&timezone=auto`
     );
     if (!res.ok) return dailyDustMap;
     const json = await res.json();
