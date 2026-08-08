@@ -726,7 +726,7 @@ function ObservationDetail({
       className="fixed inset-0 z-[5000] bg-[#161c18] flex flex-col"
       dir={isArabic ? "rtl" : "ltr"}
     >
-      <header className="px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top))] border-b border-white/5 flex items-center gap-4 sticky top-0 bg-[#161c18] z-10">
+      <header className="px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] border-b border-white/5 flex items-center gap-4 shrink-0 bg-[#161c18] z-10">
         <button
           onClick={onClose}
           className="p-2 hover:bg-white/5 rounded-full transition-colors"
@@ -5488,15 +5488,15 @@ export default function App() {
   }
 
   return (
-    <main
-      className="h-[100dvh] overflow-hidden bg-[#0d120f] text-slate-300 font-sans flex flex-col max-w-md mx-auto shadow-2xl border-x border-white/5 relative safe-area-bottom"
+    <div
+      className="h-screen h-[100dvh] overflow-hidden bg-[#0d120f] text-slate-300 font-sans flex flex-col max-w-md mx-auto shadow-2xl border-x border-white/5 relative safe-area-bottom"
       dir={isArabic ? "rtl" : "ltr"}
     >
       <LiquidBackground />
       <LiquidGlassSVG />
       
       {/* Header */}
-      <header className="px-5 pb-3.5 pt-[calc(1.25rem+env(safe-area-inset-top))] bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center sticky top-0 z-50 shadow-xs transition-colors duration-200">
+      <header className="px-5 pb-3.5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center shrink-0 z-50 shadow-xs transition-colors duration-200">
         <div className="flex flex-col justify-center min-w-0">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white leading-none">
             AgroScan <span className="text-emerald-600 dark:text-emerald-400">IA</span>
@@ -5507,19 +5507,19 @@ export default function App() {
             </p>
             {firebaseStatus === "connected" && (
               <span
-                className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"
+                className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0"
                 title="Firebase Connecté"
               ></span>
             )}
             {firebaseStatus === "offline" && (
               <span
-                className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"
+                className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shrink-0"
                 title="Mode Hors-ligne (Actif)"
               ></span>
             )}
             {firebaseStatus === "error" && (
               <span
-                className="w-1.5 h-1.5 bg-red-500 rounded-full"
+                className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0"
                 title="Erreur Firebase"
               ></span>
             )}
@@ -5535,7 +5535,7 @@ export default function App() {
                 return "system";
               });
             }}
-            className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all active:scale-95 group cursor-pointer"
+            className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-100 dark:bg-[#0d120f] border border-slate-200/90 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/10 transition-all active:scale-95 group cursor-pointer shrink-0"
             title={
               themeMode === "system"
                 ? `Thème : Automatique (${systemPrefersDark ? "Système Sombre" : "Système Clair"}) — Cliquer pour Mode Clair`
@@ -5567,7 +5567,7 @@ export default function App() {
               <img
                 src={user.photoURL}
                 alt="Profil"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover rounded-full"
                 referrerPolicy="no-referrer"
               />
             ) : (
@@ -7063,6 +7063,6 @@ export default function App() {
       )}
 
 
-    </main>
+    </div>
   );
 }
