@@ -613,16 +613,7 @@ export default function CameraView({
         </div>
 
         {/* Pro Status Banner */}
-        {isAdmin || isPro ? (
-          <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl flex items-center justify-between text-xs text-emerald-900 dark:text-emerald-300 shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <Sparkles size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span className="font-bold text-emerald-950 dark:text-emerald-200">Compte Pro Actif</span>
-              <span className="text-[11px] text-emerald-700 dark:text-emerald-400/80 hidden sm:inline">— Tous les modes d'analyse sont débloqués.</span>
-            </div>
-            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-600 text-white dark:bg-emerald-500/20 dark:text-emerald-300 dark:border dark:border-emerald-500/30">PRO</span>
-          </div>
-        ) : proRequestStatus === 'pending' ? (
+        {isAdmin || isPro ? null : proRequestStatus === 'pending' ? (
           <div 
             onClick={() => {
               setSelectedProMode(analysisModesList[1]);
@@ -745,33 +736,6 @@ export default function CameraView({
 
   return (
     <div className="space-y-5">
-      {/* Active Mode pill & Changer de type Header Bar */}
-      <div className="flex items-center justify-between bg-white dark:bg-[#161c18] border border-slate-200/80 dark:border-white/10 rounded-2xl p-3 shadow-sm">
-        <button
-          type="button"
-          onClick={() => {
-            setShowModeSelector(true);
-            triggerHaptic('light');
-          }}
-          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold text-xs rounded-xl transition-all cursor-pointer border border-emerald-300/80 dark:border-emerald-500/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 shadow-sm"
-        >
-          <ActiveIcon size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <span>{activeModeObj.title}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setShowModeSelector(true);
-            triggerHaptic('light');
-          }}
-          className="text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 cursor-pointer transition-colors"
-        >
-          <span>Changer de type</span>
-          <ChevronRight size={16} />
-        </button>
-      </div>
-
       {/* Image Gallery / Upload Area */}
       <div className="bg-[#161c18] rounded-2xl p-4 shadow-none border border-white/5">
         <div className="flex justify-between items-center mb-4">
@@ -869,7 +833,7 @@ export default function CameraView({
                   <Camera size={26} />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base tracking-wide">Capture rapide</h3>
+                  <h3 className="font-extrabold text-base tracking-wide text-white force-text-white">Capture rapide</h3>
                   <p className="text-[11px] text-emerald-100 font-medium mt-0.5">
                     GPS + date garantis · Recommandé
                   </p>
