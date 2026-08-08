@@ -721,26 +721,8 @@ body.light-mode header h1 {
 .leaflet-popup-close-button:hover {
   color: #34d399 !important;
 }
-.leaflet-control-zoom {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 12px !important;
-  overflow: hidden;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4) !important;
-}
-.leaflet-control-zoom-in, .leaflet-control-zoom-out {
-  background-color: rgba(22, 28, 24, 0.9) !important;
-  backdrop-filter: blur(8px);
-  color: #34d399 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  width: 34px !important;
-  height: 34px !important;
-  line-height: 34px !important;
-  font-size: 16px !important;
-  font-weight: bold !important;
-}
-.leaflet-control-zoom-in:hover, .leaflet-control-zoom-out:hover {
-  background-color: rgba(52, 211, 153, 0.2) !important;
-  color: #ffffff !important;
+.leaflet-control-zoom, .leaflet-control-attribution {
+  display: none !important;
 }
 .custom-map-cluster {
   background: rgba(16, 185, 129, 0.25);

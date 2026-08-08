@@ -2,7 +2,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, MapPin, Compass, Navigation, Maximize2, Layers, CheckCircle2, AlertTriangle, XCircle, Sparkles, Filter, X } from 'lucide-react';
 import { useState, useMemo, FormEvent, useEffect, useCallback, useRef } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, ZoomControl, Circle } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, Circle } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 
 // High Resolution Marker Icons
@@ -387,13 +387,13 @@ export default function MapView({
           zoom={mapZoom} 
           style={{ height: '100%', width: '100%' }} 
           zoomControl={false}
+          attributionControl={false}
           preferCanvas={true} // High efficiency HTML5 Canvas rendering for max FPS speed
           keepBuffer={2}       // Optimized tile buffer to load tiles fast without network congestion
           updateWhenIdle={true} // Wait for pan pauses before requesting extra tiles
           updateWhenZooming={false}
           maxZoom={22}
         >
-          <ZoomControl position="bottomright" />
           <MapController center={mapCenter} zoom={mapZoom} bounds={fitBoundsTrigger} />
           <MapClickHandler onMapClick={onMapClick} />
 
