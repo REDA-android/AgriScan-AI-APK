@@ -299,7 +299,9 @@ body.light-mode .bg-slate-800 .text-white,
 body.light-mode .bg-slate-900 .text-white,
 body.light-mode .bg-black .text-white,
 body.light-mode [class*="from-emerald"] .text-white,
+body.light-mode [class*="from-emerald"] h3,
 body.light-mode .bg-gradient-to-br .text-white,
+body.light-mode .bg-gradient-to-br h3,
 body.light-mode button.bg-emerald-500,
 body.light-mode button.bg-emerald-600,
 body.light-mode button.bg-emerald-700,
@@ -737,6 +739,7 @@ body.light-mode header h1 {
   backdrop-filter: blur(6px);
 }
 
+<<<<<<< HEAD
 /* Premium Visual & Stability Extensions */
 .emerald-aura {
   position: relative;

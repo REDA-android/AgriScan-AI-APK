@@ -726,7 +726,7 @@ function ObservationDetail({
       className="fixed inset-0 z-[5000] bg-[#161c18] flex flex-col"
       dir={isArabic ? "rtl" : "ltr"}
     >
-      <header className="px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] border-b border-white/5 flex items-center gap-4 shrink-0 bg-[#161c18] z-10">
+      <header className="relative shrink-0 w-full px-4 pb-4 pt-[calc(1rem+env(safe-area-inset-top,0px))] border-b border-white/5 flex items-center gap-4 bg-[#161c18] z-50">
         <button
           onClick={onClose}
           className="p-2 hover:bg-white/5 rounded-full transition-colors"
@@ -5501,7 +5501,7 @@ export default function App() {
       <LiquidGlassSVG />
       
       {/* Header */}
-      <header className="px-5 pb-3.5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] bg-white/85 dark:bg-[#161c18]/85 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center shrink-0 z-50 shadow-xs transition-colors duration-200">
+      <header className="relative shrink-0 w-full px-5 pb-3.5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] bg-white/95 dark:bg-[#161c18]/95 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center z-50 shadow-xs transition-colors duration-200">
         <div className="flex flex-col justify-center min-w-0">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white leading-none">
             AgroScan <span className="text-emerald-600 dark:text-emerald-400">IA</span>
@@ -6161,7 +6161,7 @@ export default function App() {
                 {observations.slice(0, 5).map((obs) => (
                   <div
                     key={obs.id}
-                    className="flex items-center gap-4 p-3.5 liquid-glass-card glass-card-interactive shadow-none group relative cursor-pointer"
+                    className="flex items-center gap-4 p-3.5 liquid-glass-card shadow-none group relative cursor-pointer"
                   >
                     <div
                       className="relative cursor-pointer"
