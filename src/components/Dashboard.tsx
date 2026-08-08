@@ -77,7 +77,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           whileHover={{ scale: 1.02, y: -2 }}
           whileTap={{ scale: 0.98 }}
           onClick={onScan}
-          className="flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 backdrop-blur-2xl border border-emerald-400/30 rounded-[24px] shadow-[0_12px_36px_rgba(16,185,129,0.25),inset_0_1px_1px_rgba(255,255,255,0.3)] group cursor-pointer"
+          className="emerald-aura flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 backdrop-blur-2xl border border-emerald-400/30 rounded-[24px] shadow-[0_12px_36px_rgba(16,185,129,0.25),inset_0_1px_1px_rgba(255,255,255,0.3)] group cursor-pointer"
         >
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
             <Plus className="w-6 h-6 text-emerald-300" />

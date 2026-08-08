@@ -6156,7 +6156,7 @@ export default function App() {
                 {observations.slice(0, 5).map((obs) => (
                   <div
                     key={obs.id}
-                    className="flex items-center gap-4 p-3.5 liquid-glass-card shadow-none group relative cursor-pointer"
+                    className="flex items-center gap-4 p-3.5 liquid-glass-card glass-card-interactive shadow-none group relative cursor-pointer"
                   >
                     <div
                       className="relative cursor-pointer"

@@ -737,3 +737,51 @@ body.light-mode header h1 {
   backdrop-filter: blur(6px);
 }
 
+/* Premium Visual & Stability Extensions */
+.emerald-aura {
+  position: relative;
+}
+.emerald-aura::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.4), rgba(52, 211, 153, 0.1), rgba(16, 185, 129, 0.2));
+  z-index: -1;
+  opacity: 0.7;
+  filter: blur(8px);
+  transition: opacity 0.3s ease;
+}
+.emerald-aura:hover::after {
+  opacity: 1;
+  filter: blur(12px);
+}
+
+.status-badge-pulse {
+  position: relative;
+}
+.status-badge-pulse::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.4;
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 0; }
+  100% { transform: scale(0.95); opacity: 0; }
+}
+
+.glass-card-interactive {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -5px rgba(16, 185, 129, 0.25);
+}
+
+
