@@ -405,7 +405,7 @@ function ObservationDetail({
       }, 1000);
     } catch (err) {
       console.error("Mic access error", err);
-      alert("Impossible d'accéder au microphone.");
+      notifyUser("Impossible d'accéder au microphone.", "error");
     }
   };
 
@@ -466,7 +466,7 @@ function ObservationDetail({
       }, 1000);
     } catch (err) {
       console.error("Mic access error", err);
-      alert("Impossible d'accéder au microphone.");
+      notifyUser("Impossible d'accéder au microphone.", "error");
     }
   };
 
@@ -1930,7 +1930,7 @@ function WeatherCard({
       generateWeatherPDF(weather);
     } catch (e) {
       console.error("Erreur lors de la génération du PDF", e);
-      alert("Erreur lors de la génération du rapport Météo.");
+      notifyUser("Erreur lors de la génération du rapport Météo.", "error");
     }
   };
 
@@ -2999,8 +2999,9 @@ export default function App() {
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert(
+      notifyUser(
         "La reconnaissance vocale n'est pas supportée sur ce navigateur ou cet appareil.",
+        "error"
       );
       return;
     }
@@ -3043,7 +3044,7 @@ export default function App() {
 
   const speakMessage = (text: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) {
-      alert("La synthèse vocale n'est pas supportée.");
+      notifyUser("La synthèse vocale n'est pas supportée.", "error");
       return;
     }
 
@@ -3305,8 +3306,8 @@ export default function App() {
             geoData.results[0].admin1 || geoData.results[0].country || "";
         } else {
           locName = query;
-          locationLat = locationLat ?? 31.7917;
-          locationLng = locationLng ?? -7.0926;
+          locationLat = locationLat ?? 33.9716;
+          locationLng = locationLng ?? -6.8498;
         }
       } else if (lat && lng) {
         locationLat = lat;
@@ -3544,8 +3545,9 @@ export default function App() {
       setWeather(finalData);
 
       if (weatherData.isFallback) {
-        alert(
+        notifyUser(
           "La source météo principale a échoué. Basculement automatique vers les sources de secours.",
+          "error"
         );
       }
     } catch (error) {
@@ -3580,7 +3582,7 @@ export default function App() {
           fetchWeather(pos.coords.latitude, pos.coords.longitude);
         } catch (err) {
           console.warn("Geolocation failed/denied, defaulting to Paris", err);
-          fetchWeather(48.8566, 2.3522);
+          fetchWeather(33.9716, -6.8498);
         }
       };
 
@@ -3592,10 +3594,10 @@ export default function App() {
     const XLSX = await import("xlsx");
     const headers = [
       "Culture",
-      "Varit",
-      "Espce",
+      "Variété",
+      "Espèce",
       "Famille",
-      "Rgion",
+      "Région",
       "Domaine",
       "Latitude",
       "Longitude",
@@ -3716,7 +3718,7 @@ export default function App() {
         const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
         if (rows.length === 0) {
-          alert("Le fichier importé est vide.");
+          notifyUser("Le fichier importé est vide.", "error");
           setIsImportingCSV(false);
           return;
         }
@@ -3962,13 +3964,14 @@ export default function App() {
         }
 
         triggerHaptic("success");
-        alert(
+        notifyUser(
           `${importedObservations.length} enregistrements botaniques ont été importés avec succès !`,
+          "success"
         );
       } catch (err) {
         console.error("Bulk CSV import error", err);
         triggerHaptic("error");
-        alert("Une erreur est survenue lors de l'importation.");
+        notifyUser("Une erreur est survenue lors de l'importation.", "error");
       } finally {
         setIsImportingCSV(false);
         if (e.target) e.target.value = "";
@@ -4021,7 +4024,7 @@ export default function App() {
         };
         fetchAndAnalyze();
       }
-      alert("Réinitialisation globale lancée !");
+      notifyUser("Réinitialisation globale lancée !", "success");
     } catch (e) {
       console.error("Global reset failed", e);
     }
@@ -4357,7 +4360,7 @@ export default function App() {
           variety:
             offlineAnalysisResult?.variety ||
             metadata.variety ||
-            "Captur Hors-ligne",
+            "Capturé Hors-ligne",
           culture:
             offlineAnalysisResult?.culture ||
             metadata.culture ||
@@ -4389,8 +4392,8 @@ export default function App() {
         userId: user.uid,
         domain: metadata.domain || "",
         location: {
-          lat: metadata.lat ?? 48.8566,
-          lng: metadata.lng ?? 2.3522,
+          lat: metadata.lat ?? 33.9716,
+          lng: metadata.lng ?? -6.8498,
         },
         createdAt: serverTimestamp(),
         capturedAt: metadata.date ?? new Date().toISOString(),
@@ -4435,7 +4438,7 @@ export default function App() {
       setBackgroundTasks((prev) =>
         prev.filter((t) => t.id !== uploadTaskId && t.id !== analysisTaskId),
       );
-      alert("Erreur lors de la cration de l'observation.");
+      notifyUser("Erreur lors de la création de l'observation.", "error");
       return;
     }
 
@@ -4534,8 +4537,9 @@ export default function App() {
         ) {
           displayError =
             "Erreur de permission: Vérifiez vos règles Firebase Storage. Autorisez l'accès à /observations.";
-          alert(
+          notifyUser(
             "ERREUR FIREBASE STORAGE: L'envoi des images est bloqué car les règles de sécurité Firebase Storage ne sont pas configurées. Veuillez vous rendre sur la console Firebase, section Storage > Règles, et autoriser l'écriture.",
+            "error"
           );
         }
 
@@ -4742,9 +4746,10 @@ export default function App() {
       setBackgroundTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (e) {
       console.error("Retry failed", e);
-      alert(
+      notifyUser(
         "Erreur lors de la réinitialisation : " +
           (e instanceof Error ? e.message : "Erreur inconnue"),
+        "error"
       );
       setBackgroundTasks((prev) => prev.filter((t) => t.type !== "analysis"));
     }
@@ -4806,10 +4811,10 @@ export default function App() {
         setAnalysis((prev) => (prev ? { ...prev, status: "analyzing" } : null));
       }
 
-      alert("Analyse réinitialisée !");
+      notifyUser("Analyse réinitialisée !", "success");
     } catch (e) {
       console.error("Reset failed", e);
-      alert("Erreur lors de la réinitialisation.");
+      notifyUser("Erreur lors de la réinitialisation.", "error");
       await updateDoc(doc(db, "observations", id), {
         status: "error",
         description: "La réinitialisation de l'analyse a échoué.",
@@ -4957,7 +4962,7 @@ export default function App() {
           createdAt: serverTimestamp(),
         });
       }
-      alert(t.accessPending);
+      notifyUser(t.accessPending, "info");
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, "users");
     }
@@ -5048,18 +5053,18 @@ export default function App() {
           )}
           {authMode === "verifyEmail" ? (
             <div className="space-y-6">
-              <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-100">
+              <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-100">
                 <Mail className="text-blue-500" size={40} />
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
                 {t.verifyEmail}
               </h2>
-              <p className="text-slate-600 text-sm font-medium leading-relaxed">
+              <p className="text-blue-300 text-sm font-medium leading-relaxed">
                 {t.verifyEmailDesc}
               </p>
               <button
                 onClick={handleLogout}
-                className="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all border border-slate-200"
+                className="w-full py-4 bg-white/10 text-slate-300 rounded-2xl font-bold hover:bg-slate-200 transition-all border border-slate-200"
               >
                 {t.back}
               </button>
@@ -5097,7 +5102,7 @@ export default function App() {
                     setIsAuthLoading(true);
                     try {
                       await resetPassword(email);
-                      alert(t.sendResetEmail);
+                      notifyUser(t.sendResetEmail, "success");
                       setAuthMode("login");
                     } catch (e: any) {
                       setAuthError(e.message);
@@ -6321,8 +6326,9 @@ export default function App() {
                         if (check.location !== "granted") {
                           check = await Geolocation.requestPermissions();
                           if (check.location === "denied") {
-                            alert(
+                            notifyUser(
                               "Permission de localisation refusée. Activez-la dans les paramètres de votre appareil.",
+                              "error"
                             );
                             return;
                           }
@@ -6351,7 +6357,7 @@ export default function App() {
                       }
                       fetchWeather(pos.coords.latitude, pos.coords.longitude);
                     } catch (err: any) {
-                      alert(`Erreur de géolocalisation: ${err.message}`);
+                      notifyUser(`Erreur de géolocalisation: ${err.message}`, "error");
                       console.log(err);
                     }
                   }}
@@ -6938,7 +6944,7 @@ export default function App() {
                   onMapClick={(lat, lng) => setManualLocation({ lat, lng })}
                 />
                 <div className="absolute top-4 left-4 right-4 bg-[#161c18]/80 backdrop-blur-md p-3 rounded-xl shadow-lg text-[10px] font-medium text-slate-400 border border-white/10">
-                  Cliquez sur la carte pour dfinir la position exacte de
+                  Cliquez sur la carte pour définir la position exacte de
                   l'observation.
                 </div>
               </div>
