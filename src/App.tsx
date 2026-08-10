@@ -133,6 +133,7 @@ import MapView from "./components/MapView";
 import { ChatBot } from "./components/ChatBot";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { WeatherShareModal } from "./components/WeatherShareModal";
+import VoiceDictationButton from "./components/VoiceDictationButton";
 import {
   LiquidGlassSVG,
   LiquidBackground,
@@ -405,7 +406,7 @@ function ObservationDetail({
       }, 1000);
     } catch (err) {
       console.error("Mic access error", err);
-      notifyUser("Impossible d'accéder au microphone.", "error");
+      alert("Impossible d'accéder au microphone.");
     }
   };
 
@@ -466,7 +467,7 @@ function ObservationDetail({
       }, 1000);
     } catch (err) {
       console.error("Mic access error", err);
-      notifyUser("Impossible d'accéder au microphone.", "error");
+      alert("Impossible d'accéder au microphone.");
     }
   };
 
@@ -1930,7 +1931,7 @@ function WeatherCard({
       generateWeatherPDF(weather);
     } catch (e) {
       console.error("Erreur lors de la génération du PDF", e);
-      notifyUser("Erreur lors de la génération du rapport Météo.", "error");
+      alert("Erreur lors de la génération du rapport Météo.");
     }
   };
 
@@ -2583,6 +2584,10 @@ export default function App() {
   // New States
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [exactDateFilter, setExactDateFilter] = useState("");
+  const [cultureFilter, setCultureFilter] = useState("");
+  const [riskFilter, setRiskFilter] = useState<"all" | "healthy" | "warning" | "critical">("all");
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
   const [quickFilter, setQuickFilter] = useState<
     "week" | "month" | "quarter" | "custom" | "favorites"
   >("week");
@@ -2999,9 +3004,8 @@ export default function App() {
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      notifyUser(
+      alert(
         "La reconnaissance vocale n'est pas supportée sur ce navigateur ou cet appareil.",
-        "error"
       );
       return;
     }
@@ -3044,7 +3048,7 @@ export default function App() {
 
   const speakMessage = (text: string) => {
     if (typeof window === "undefined" || !window.speechSynthesis) {
-      notifyUser("La synthèse vocale n'est pas supportée.", "error");
+      alert("La synthèse vocale n'est pas supportée.");
       return;
     }
 
@@ -3306,8 +3310,8 @@ export default function App() {
             geoData.results[0].admin1 || geoData.results[0].country || "";
         } else {
           locName = query;
-          locationLat = locationLat ?? 33.9716;
-          locationLng = locationLng ?? -6.8498;
+          locationLat = locationLat ?? 31.7917;
+          locationLng = locationLng ?? -7.0926;
         }
       } else if (lat && lng) {
         locationLat = lat;
@@ -3545,9 +3549,8 @@ export default function App() {
       setWeather(finalData);
 
       if (weatherData.isFallback) {
-        notifyUser(
+        alert(
           "La source météo principale a échoué. Basculement automatique vers les sources de secours.",
-          "error"
         );
       }
     } catch (error) {
@@ -3582,7 +3585,7 @@ export default function App() {
           fetchWeather(pos.coords.latitude, pos.coords.longitude);
         } catch (err) {
           console.warn("Geolocation failed/denied, defaulting to Paris", err);
-          fetchWeather(33.9716, -6.8498);
+          fetchWeather(48.8566, 2.3522);
         }
       };
 
@@ -3594,10 +3597,10 @@ export default function App() {
     const XLSX = await import("xlsx");
     const headers = [
       "Culture",
-      "Variété",
-      "Espèce",
+      "Varit",
+      "Espce",
       "Famille",
-      "Région",
+      "Rgion",
       "Domaine",
       "Latitude",
       "Longitude",
@@ -3718,7 +3721,7 @@ export default function App() {
         const rows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
         if (rows.length === 0) {
-          notifyUser("Le fichier importé est vide.", "error");
+          alert("Le fichier importé est vide.");
           setIsImportingCSV(false);
           return;
         }
@@ -3964,14 +3967,13 @@ export default function App() {
         }
 
         triggerHaptic("success");
-        notifyUser(
+        alert(
           `${importedObservations.length} enregistrements botaniques ont été importés avec succès !`,
-          "success"
         );
       } catch (err) {
         console.error("Bulk CSV import error", err);
         triggerHaptic("error");
-        notifyUser("Une erreur est survenue lors de l'importation.", "error");
+        alert("Une erreur est survenue lors de l'importation.");
       } finally {
         setIsImportingCSV(false);
         if (e.target) e.target.value = "";
@@ -4024,7 +4026,7 @@ export default function App() {
         };
         fetchAndAnalyze();
       }
-      notifyUser("Réinitialisation globale lancée !", "success");
+      alert("Réinitialisation globale lancée !");
     } catch (e) {
       console.error("Global reset failed", e);
     }
@@ -4360,7 +4362,7 @@ export default function App() {
           variety:
             offlineAnalysisResult?.variety ||
             metadata.variety ||
-            "Capturé Hors-ligne",
+            "Captur Hors-ligne",
           culture:
             offlineAnalysisResult?.culture ||
             metadata.culture ||
@@ -4392,8 +4394,8 @@ export default function App() {
         userId: user.uid,
         domain: metadata.domain || "",
         location: {
-          lat: metadata.lat ?? 33.9716,
-          lng: metadata.lng ?? -6.8498,
+          lat: metadata.lat ?? 48.8566,
+          lng: metadata.lng ?? 2.3522,
         },
         createdAt: serverTimestamp(),
         capturedAt: metadata.date ?? new Date().toISOString(),
@@ -4438,7 +4440,7 @@ export default function App() {
       setBackgroundTasks((prev) =>
         prev.filter((t) => t.id !== uploadTaskId && t.id !== analysisTaskId),
       );
-      notifyUser("Erreur lors de la création de l'observation.", "error");
+      alert("Erreur lors de la cration de l'observation.");
       return;
     }
 
@@ -4537,9 +4539,8 @@ export default function App() {
         ) {
           displayError =
             "Erreur de permission: Vérifiez vos règles Firebase Storage. Autorisez l'accès à /observations.";
-          notifyUser(
+          alert(
             "ERREUR FIREBASE STORAGE: L'envoi des images est bloqué car les règles de sécurité Firebase Storage ne sont pas configurées. Veuillez vous rendre sur la console Firebase, section Storage > Règles, et autoriser l'écriture.",
-            "error"
           );
         }
 
@@ -4746,10 +4747,9 @@ export default function App() {
       setBackgroundTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (e) {
       console.error("Retry failed", e);
-      notifyUser(
+      alert(
         "Erreur lors de la réinitialisation : " +
           (e instanceof Error ? e.message : "Erreur inconnue"),
-        "error"
       );
       setBackgroundTasks((prev) => prev.filter((t) => t.type !== "analysis"));
     }
@@ -4811,10 +4811,10 @@ export default function App() {
         setAnalysis((prev) => (prev ? { ...prev, status: "analyzing" } : null));
       }
 
-      notifyUser("Analyse réinitialisée !", "success");
+      alert("Analyse réinitialisée !");
     } catch (e) {
       console.error("Reset failed", e);
-      notifyUser("Erreur lors de la réinitialisation.", "error");
+      alert("Erreur lors de la réinitialisation.");
       await updateDoc(doc(db, "observations", id), {
         status: "error",
         description: "La réinitialisation de l'analyse a échoué.",
@@ -4886,12 +4886,34 @@ export default function App() {
       const matchesRegion = !regionFilter || obs.region === regionFilter;
       const matchesFamily = !familyFilter || obs.family === familyFilter;
       const matchesDomain = !domainFilter || obs.domain === domainFilter;
+      const matchesCulture = !cultureFilter || (obs.culture || "").toLowerCase() === cultureFilter.toLowerCase();
+
+      // Health risk level filter
+      const severityStr = (obs.analysis?.severity || obs.analysis?.healthStatus || obs.phenotypicTraits?.healthStatus || "").toString().toLowerCase();
+      let riskLevel = "healthy";
+      if (severityStr.includes("critical") || severityStr.includes("severe") || severityStr.includes("critique") || severityStr === "critical") {
+        riskLevel = "critical";
+      } else if (severityStr.includes("warning") || severityStr.includes("moderate") || severityStr.includes("mild") || severityStr.includes("modéré") || severityStr === "warning") {
+        riskLevel = "warning";
+      }
+      const matchesRisk = riskFilter === "all" || riskLevel === riskFilter;
 
       const obsDate = obs.capturedAt
         ? new Date(obs.capturedAt)
         : obs.createdAt?.toDate
           ? obs.createdAt.toDate()
           : new Date();
+
+      // Exact Date Filter
+      let matchesExactDate = true;
+      if (exactDateFilter) {
+        const obsDay = new Date(obsDate.getFullYear(), obsDate.getMonth(), obsDate.getDate()).getTime();
+        const targetParts = exactDateFilter.split("-").map(Number);
+        if (targetParts.length === 3) {
+          const targetDay = new Date(targetParts[0], targetParts[1] - 1, targetParts[2]).getTime();
+          matchesExactDate = obsDay === targetDay;
+        }
+      }
 
       let matchesDate = true;
       let matchesFavorite = true;
@@ -4913,7 +4935,7 @@ export default function App() {
         matchesDate = obsDate >= startOfQuarter;
       } else if (quickFilter === "custom") {
         if (startDate)
-          matchesDate = matchesDate && obsDate >= new Date(startDate);
+          matchesDate = matchesDate && obsDate >= new Date(startDate + "T00:00:00");
         if (endDate)
           matchesDate =
             matchesDate && obsDate <= new Date(endDate + "T23:59:59");
@@ -4926,6 +4948,9 @@ export default function App() {
         matchesRegion &&
         matchesFamily &&
         matchesDomain &&
+        matchesCulture &&
+        matchesRisk &&
+        matchesExactDate &&
         matchesDate &&
         matchesFavorite
       );
@@ -4937,6 +4962,9 @@ export default function App() {
     regionFilter,
     familyFilter,
     domainFilter,
+    cultureFilter,
+    riskFilter,
+    exactDateFilter,
     startDate,
     endDate,
     quickFilter,
@@ -4962,7 +4990,7 @@ export default function App() {
           createdAt: serverTimestamp(),
         });
       }
-      notifyUser(t.accessPending, "info");
+      alert(t.accessPending);
     } catch (e) {
       handleFirestoreError(e, OperationType.CREATE, "users");
     }
@@ -5053,18 +5081,18 @@ export default function App() {
           )}
           {authMode === "verifyEmail" ? (
             <div className="space-y-6">
-              <div className="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-100">
+              <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-100">
                 <Mail className="text-blue-500" size={40} />
               </div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
                 {t.verifyEmail}
               </h2>
-              <p className="text-blue-300 text-sm font-medium leading-relaxed">
+              <p className="text-slate-600 text-sm font-medium leading-relaxed">
                 {t.verifyEmailDesc}
               </p>
               <button
                 onClick={handleLogout}
-                className="w-full py-4 bg-white/10 text-slate-300 rounded-2xl font-bold hover:bg-slate-200 transition-all border border-slate-200"
+                className="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all border border-slate-200"
               >
                 {t.back}
               </button>
@@ -5102,7 +5130,7 @@ export default function App() {
                     setIsAuthLoading(true);
                     try {
                       await resetPassword(email);
-                      notifyUser(t.sendResetEmail, "success");
+                      alert(t.sendResetEmail);
                       setAuthMode("login");
                     } catch (e: any) {
                       setAuthError(e.message);
@@ -5501,7 +5529,7 @@ export default function App() {
       <LiquidGlassSVG />
       
       {/* Header */}
-      <header className="relative shrink-0 w-full px-5 pb-3.5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] bg-white/95 dark:bg-[#161c18]/95 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center z-50 shadow-xs transition-colors duration-200">
+      <header className="fixed top-0 left-0 right-0 max-w-md mx-auto w-full px-5 pb-3.5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] bg-white/95 dark:bg-[#161c18]/95 backdrop-blur-2xl border-b border-slate-200/80 dark:border-white/10 flex justify-between items-center z-[100] shadow-lg transition-colors duration-200 text-slate-900 dark:text-white">
         <div className="flex flex-col justify-center min-w-0">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-1.5 text-slate-900 dark:text-white leading-none">
             AgroScan <span className="text-emerald-600 dark:text-emerald-400">IA</span>
@@ -5581,6 +5609,9 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {/* Main Content Area Container with Top Padding for Fixed Header */}
+      <div className="flex-1 overflow-y-auto pt-[calc(4.75rem+env(safe-area-inset-top,0px))] flex flex-col">
 
       {/* Logout Confirmation Modal */}
       <AnimatePresence>
@@ -6098,15 +6129,22 @@ export default function App() {
                   )}
 
                   <div>
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex items-center gap-2">
-                      <Edit2 size={12} />
-                      Notes de l'agronome
-                    </h4>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-2">
+                        <Edit2 size={12} />
+                        Notes de l'agronome
+                      </h4>
+                      <VoiceDictationButton
+                        currentValue={userNotes}
+                        onTranscript={(text) => setUserNotes(text)}
+                        lang="fr-FR"
+                      />
+                    </div>
                     <textarea
                       value={userNotes}
                       onChange={(e) => setUserNotes(e.target.value)}
-                      placeholder="Ajouter des observations sur le sol, le cléimat, le rendement..."
-                      className="w-full p-3 bg-[#0d120f] rounded-xl border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 min-h-[100px]"
+                      placeholder="Ajouter des observations sur le sol, le climat, le rendement (dictée vocale disponible)..."
+                      className="w-full p-3 bg-[#0d120f] rounded-xl border border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 min-h-[100px] text-slate-100"
                     />
                   </div>
 
@@ -6326,9 +6364,8 @@ export default function App() {
                         if (check.location !== "granted") {
                           check = await Geolocation.requestPermissions();
                           if (check.location === "denied") {
-                            notifyUser(
+                            alert(
                               "Permission de localisation refusée. Activez-la dans les paramètres de votre appareil.",
-                              "error"
                             );
                             return;
                           }
@@ -6357,7 +6394,7 @@ export default function App() {
                       }
                       fetchWeather(pos.coords.latitude, pos.coords.longitude);
                     } catch (err: any) {
-                      notifyUser(`Erreur de géolocalisation: ${err.message}`, "error");
+                      alert(`Erreur de géolocalisation: ${err.message}`);
                       console.log(err);
                     }
                   }}
@@ -6944,7 +6981,7 @@ export default function App() {
                   onMapClick={(lat, lng) => setManualLocation({ lat, lng })}
                 />
                 <div className="absolute top-4 left-4 right-4 bg-[#161c18]/80 backdrop-blur-md p-3 rounded-xl shadow-lg text-[10px] font-medium text-slate-400 border border-white/10">
-                  Cliquez sur la carte pour définir la position exacte de
+                  Cliquez sur la carte pour dfinir la position exacte de
                   l'observation.
                 </div>
               </div>
@@ -7069,6 +7106,7 @@ export default function App() {
       )}
 
 
+      </div>
     </div>
   );
 }

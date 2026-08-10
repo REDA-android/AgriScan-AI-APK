@@ -1,0 +1,8 @@
+node_modules
+.git
+android
+dist
+build
+.next
+.cache
+*.apk

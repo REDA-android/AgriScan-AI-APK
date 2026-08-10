@@ -15,7 +15,10 @@ import {
   signInWithCredential,
   User
 } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, setLogLevel } from 'firebase/firestore';
+
+// Suppress non-critical network/connection warning logs in console
+setLogLevel('error');
 import { getStorage, ref, getDownloadURL, uploadBytes } from 'firebase/storage';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';

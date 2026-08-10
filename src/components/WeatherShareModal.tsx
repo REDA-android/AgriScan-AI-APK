@@ -149,6 +149,56 @@ export const WeatherShareModal: React.FC<WeatherShareModalProps> = ({
   const startIdx = todayIdx !== -1 ? todayIdx : Math.max(0, (weather.forecast || []).length - 7);
   const forecastList = (weather.forecast || []).slice(startIdx, startIdx + 7);
 
+  // Helper to sanitize cloned document for html2canvas (replaces unsupported Tailwind v4 oklch colors)
+  const sanitizeClonedDoc = (clonedDoc: Document) => {
+    // 1. Sanitize all style tags
+    const styleElements = clonedDoc.querySelectorAll("style");
+    styleElements.forEach((styleEl) => {
+      if (styleEl.textContent && styleEl.textContent.includes("oklch")) {
+        styleEl.textContent = styleEl.textContent.replace(
+          /oklch\([^)]+\)/gi,
+          "rgba(16, 185, 129, 0.9)"
+        );
+      }
+    });
+
+    // 2. Sanitize styleSheets cssRules
+    try {
+      Array.from(clonedDoc.styleSheets).forEach((sheet) => {
+        try {
+          const rules = sheet.cssRules || sheet.rules;
+          if (!rules) return;
+          for (let i = 0; i < rules.length; i++) {
+            const rule = rules[i];
+            if (rule.cssText && rule.cssText.includes("oklch")) {
+              try {
+                const newCss = rule.cssText.replace(/oklch\([^)]+\)/gi, "rgba(16, 185, 129, 0.9)");
+                sheet.deleteRule(i);
+                sheet.insertRule(newCss, i);
+              } catch (e) {
+                // Ignore individual rule replacement failure
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore cross-origin stylesheet errors
+        }
+      });
+    } catch (e) {}
+
+    // 3. Sanitize element inline styles
+    const allNodes = clonedDoc.querySelectorAll("*");
+    allNodes.forEach((node) => {
+      const el = node as HTMLElement;
+      if (el.style) {
+        const cssText = el.style.cssText;
+        if (cssText && cssText.includes("oklch")) {
+          el.style.cssText = cssText.replace(/oklch\([^)]+\)/gi, "rgba(16, 185, 129, 0.9)");
+        }
+      }
+    });
+  };
+
   // Export card as PNG using html2canvas
   const handleDownloadPNG = async () => {
     if (!cardRef.current) return;
@@ -163,6 +213,7 @@ export const WeatherShareModal: React.FC<WeatherShareModalProps> = ({
         scrollX: 0,
         scrollY: 0,
         windowWidth: 400,
+        onclone: sanitizeClonedDoc,
       });
 
       const image = canvas.toDataURL("image/png");
@@ -192,6 +243,7 @@ export const WeatherShareModal: React.FC<WeatherShareModalProps> = ({
         allowTaint: true,
         backgroundColor: "#f5f4ed",
         logging: false,
+        onclone: sanitizeClonedDoc,
       });
 
       canvas.toBlob(async (blob) => {
