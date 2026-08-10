@@ -6527,242 +6527,105 @@ export default function App() {
               </div>
 
               <div className="p-4 liquid-glass-card space-y-4">
-                {/* Advanced Filters Toggle Bar */}
-                <div className="flex items-center justify-between pb-1 border-b border-white/10">
-                  <button
-                    onClick={() => setIsAdvancedFilterOpen(!isAdvancedFilterOpen)}
-                    className="flex items-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
-                  >
-                    <Filter size={15} />
-                    <span>Panneau de Filtres Avancés</span>
-                    {([exactDateFilter, startDate || endDate, cultureFilter, riskFilter !== "all", regionFilter, familyFilter, domainFilter].filter(Boolean).length) > 0 && (
-                      <span className="bg-emerald-500 text-slate-950 px-1.5 py-0.5 rounded-full text-[10px] font-black">
-                        {[exactDateFilter, startDate || endDate, cultureFilter, riskFilter !== "all", regionFilter, familyFilter, domainFilter].filter(Boolean).length}
-                      </span>
-                    )}
-                  </button>
-
-                  {(exactDateFilter || startDate || endDate || cultureFilter || riskFilter !== "all" || regionFilter || familyFilter || domainFilter || searchQuery) && (
-                    <button
-                      onClick={() => {
-                        setExactDateFilter("");
-                        setStartDate("");
-                        setEndDate("");
-                        setCultureFilter("");
-                        setRiskFilter("all");
-                        setRegionFilter("");
-                        setFamilyFilter("");
-                        setDomainFilter("");
-                        setSearchQuery("");
-                        setQuickFilter("week");
-                      }}
-                      className="text-[10px] font-bold text-rose-400 hover:text-rose-300 uppercase tracking-wider transition-colors"
-                    >
-                      Réinitialiser
-                    </button>
-                  )}
-                </div>
-
-                {/* Quick Period Selector */}
                 <div className="flex liquid-glass-nav-bar p-1 rounded-2xl">
                   <button
-                    onClick={() => { setQuickFilter("week"); setExactDateFilter(""); }}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "week" && !exactDateFilter ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
+                    onClick={() => setQuickFilter("week")}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "week" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.week}
                   </button>
                   <button
-                    onClick={() => { setQuickFilter("month"); setExactDateFilter(""); }}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "month" && !exactDateFilter ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
+                    onClick={() => setQuickFilter("month")}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "month" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.month}
                   </button>
                   <button
-                    onClick={() => { setQuickFilter("quarter"); setExactDateFilter(""); }}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "quarter" && !exactDateFilter ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
+                    onClick={() => setQuickFilter("quarter")}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "quarter" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.quarter}
                   </button>
                   <button
                     onClick={() => setQuickFilter("custom")}
-                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "custom" || startDate || endDate ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
+                    className={`flex-1 py-2 text-[10px] font-bold rounded-xl transition-all ${quickFilter === "custom" ? "liquid-glass-pill-active liquid-glass-tab-btn-active font-extrabold" : "liquid-glass-tab-btn-inactive"}`}
                   >
                     {t.custom}
                   </button>
                 </div>
 
-                {/* ADVANCED FILTER PANEL CONTENTS */}
-                <div className="space-y-3 pt-1">
-                  {/* Risk Level Filter (Niveau de risque sanitaire) */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Niveau de risque sanitaire
-                    </label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setRiskFilter("all")}
-                        className={`py-1.5 px-2 rounded-xl text-[10px] font-bold transition-all ${riskFilter === "all" ? "bg-white/20 text-white border border-white/30" : "bg-white/5 text-slate-400 hover:bg-white/10"}`}
-                      >
-                        Tous
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRiskFilter("healthy")}
-                        className={`py-1.5 px-2 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${riskFilter === "healthy" ? "bg-emerald-500/30 text-emerald-300 border border-emerald-500/50" : "bg-emerald-500/10 text-emerald-400/70 hover:bg-emerald-500/20"}`}
-                      >
-                        <span>🟢</span> Sain
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRiskFilter("warning")}
-                        className={`py-1.5 px-2 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${riskFilter === "warning" ? "bg-amber-500/30 text-amber-300 border border-amber-500/50" : "bg-amber-500/10 text-amber-400/70 hover:bg-amber-500/20"}`}
-                      >
-                        <span>🟡</span> Attention
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRiskFilter("critical")}
-                        className={`py-1.5 px-2 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 ${riskFilter === "critical" ? "bg-rose-500/30 text-rose-300 border border-rose-500/50" : "bg-rose-500/10 text-rose-400/70 hover:bg-rose-500/20"}`}
-                      >
-                        <span>🔴</span> Critique
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Culture Filter (Filtrer par Culture) */}
+                {quickFilter === "custom" && (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Culture
+                      <label className="text-[8px] font-bold text-slate-400 uppercase ml-1">
+                        Du
                       </label>
-                      <select
-                        value={cultureFilter}
-                        onChange={(e) => setCultureFilter(e.target.value)}
-                        className="w-full p-2 bg-[#0d120f] rounded-xl border border-white/10 text-xs font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
-                      >
-                        <option value="">Toutes les cultures</option>
-                        {Array.from(
-                          new Set([
-                            ...observations.map((o) => o.culture).filter(Boolean),
-                            ...offlineObservations.map((o) => o.metadata?.culture).filter(Boolean),
-                            "Tomate", "Poivron", "Fraise", "Citrus", "Oliviers", "Pomme de terre", "Melon", "Vigne"
-                          ])
-                        ).map((c) => (
-                          <option key={c} value={c}>
-                            {c}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Date Précise Filter */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                          Date Précise
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const today = new Date().toISOString().split("T")[0];
-                            setExactDateFilter(today);
-                          }}
-                          className="text-[9px] font-bold text-emerald-400 hover:underline"
-                        >
-                          Aujourd'hui
-                        </button>
-                      </div>
                       <input
                         type="date"
-                        value={exactDateFilter}
-                        onChange={(e) => setExactDateFilter(e.target.value)}
-                        className="w-full p-2 bg-[#0d120f] rounded-xl border border-white/10 text-xs font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full p-2 bg-[#0d120f] rounded-xl border border-white/10 text-xs focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-bold text-slate-400 uppercase ml-1">
+                        Au
+                      </label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full p-2 bg-[#0d120f] rounded-xl border border-white/10 text-xs focus:outline-none"
                       />
                     </div>
                   </div>
+                )}
 
-                  {/* Plage de dates (Custom Range) */}
-                  {(quickFilter === "custom" || isAdvancedFilterOpen) && (
-                    <div className="grid grid-cols-2 gap-3 pt-1 border-t border-white/5">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">
-                          Du (Plage début)
-                        </label>
-                        <input
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => {
-                            setStartDate(e.target.value);
-                            setQuickFilter("custom");
-                          }}
-                          className="w-full p-2 bg-[#0d120f] rounded-xl border border-white/10 text-xs focus:outline-none"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">
-                          Au (Plage fin)
-                        </label>
-                        <input
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => {
-                            setEndDate(e.target.value);
-                            setQuickFilter("custom");
-                          }}
-                          className="w-full p-2 bg-[#0d120f] rounded-xl border border-white/10 text-xs focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Secondary filters (Region, Family, Domain) */}
-                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/5">
-                    <select
-                      value={regionFilter}
-                      onChange={(e) => setRegionFilter(e.target.value)}
-                      className="p-2 bg-[#0d120f] rounded-xl border border-white/10 text-[10px] font-bold text-slate-400 focus:outline-none"
-                    >
-                      <option value="">{t.region}</option>
-                      {MOROCCAN_REGIONS.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={familyFilter}
-                      onChange={(e) => setFamilyFilter(e.target.value)}
-                      className="p-2 bg-[#0d120f] rounded-xl border border-white/10 text-[10px] font-bold text-slate-400 focus:outline-none"
-                    >
-                      <option value="">{t.family}</option>
-                      {Array.from(
-                        new Set(
-                          observations.map((o) => o.family).filter(Boolean),
-                        ),
-                      ).map((f) => (
-                        <option key={f} value={f}>
-                          {f}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={domainFilter}
-                      onChange={(e) => setDomainFilter(e.target.value)}
-                      className="p-2 bg-[#0d120f] rounded-xl border border-white/10 text-[10px] font-bold text-slate-400 focus:outline-none"
-                    >
-                      <option value="">{t.domain}</option>
-                      {Array.from(
-                        new Set(
-                          observations.map((o) => o.domain).filter(Boolean),
-                        ),
-                      ).map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <select
+                    value={regionFilter}
+                    onChange={(e) => setRegionFilter(e.target.value)}
+                    className="p-2 bg-[#0d120f] rounded-xl border border-white/10 text-[10px] font-bold text-slate-400 focus:outline-none"
+                  >
+                    <option value="">{t.region}</option>
+                    {MOROCCAN_REGIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={familyFilter}
+                    onChange={(e) => setFamilyFilter(e.target.value)}
+                    className="p-2 bg-[#0d120f] rounded-xl border border-white/10 text-[10px] font-bold text-slate-400 focus:outline-none"
+                  >
+                    <option value="">{t.family}</option>
+                    {Array.from(
+                      new Set(
+                        observations.map((o) => o.family).filter(Boolean),
+                      ),
+                    ).map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={domainFilter}
+                    onChange={(e) => setDomainFilter(e.target.value)}
+                    className="p-2 bg-[#0d120f] rounded-xl border border-white/10 text-[10px] font-bold text-slate-400 focus:outline-none"
+                  >
+                    <option value="">{t.domain}</option>
+                    {Array.from(
+                      new Set(
+                        observations.map((o) => o.domain).filter(Boolean),
+                      ),
+                    ).map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {(startDate ||
