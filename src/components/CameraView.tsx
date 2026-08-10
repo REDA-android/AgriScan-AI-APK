@@ -829,14 +829,21 @@ export default function CameraView({
               <div className="absolute top-2.5 right-2.5 bg-black/30 backdrop-blur-md px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-emerald-200 border border-emerald-400/30">
                 100% FIABLE
               </div>
-              <div className="flex flex-col items-center text-center space-y-2 py-2">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
-                  <Camera size={26} />
+              <div className="flex flex-col items-center text-center space-y-2 py-1">
+                <div className="relative w-full max-w-xs h-28 my-1 rounded-xl border-2 border-dashed border-emerald-300/40 flex flex-col items-center justify-center bg-black/20 overflow-hidden">
+                  <div className="absolute top-2 left-2 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-300"></div>
+                  <div className="absolute top-2 right-2 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-300"></div>
+                  <div className="absolute bottom-2 left-2 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-300"></div>
+                  <div className="absolute bottom-2 right-2 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-300"></div>
+                  <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
+                    <Camera size={22} />
+                  </div>
+                  <span className="text-[10px] font-semibold text-emerald-200 mt-1">Placez la feuille ou le fruit au centre</span>
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base tracking-wide text-white force-text-white">Capture rapide</h3>
+                  <h3 className="font-extrabold text-base tracking-wide text-white force-text-white">Capture rapide avec IA</h3>
                   <p className="text-[11px] text-emerald-100 font-medium mt-0.5">
-                    GPS + date garantis · Recommandé
+                    GPS + date garantis · Diagnostic automatique
                   </p>
                 </div>
               </div>
