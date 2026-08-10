@@ -109,6 +109,7 @@ const ObservationCard: React.FC<ObservationCardProps> = ({ observation, onClick,
                 }}
                 className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors"
                 title="Exporter le rapport PDF"
+                aria-label="Exporter le rapport PDF"
               >
                 <FileText className="w-3.5 h-3.5" />
               </button>
