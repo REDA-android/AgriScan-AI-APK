@@ -102,9 +102,13 @@ export function generateWeatherPDF(weather: any): void {
   doc.setFontSize(16);
   doc.text(`${temp}°`, margin + 5, y + 8.5);
 
+  // Draw Sun Icon next to temp
+  doc.setFillColor(250, 204, 21); // Yellow
+  doc.circle(margin + 20, y + 6, 2, "F");
+
   doc.setFontSize(9.5);
   doc.setTextColor(100, 116, 139);
-  doc.text(condition.toUpperCase(), margin + 20, y + 8.5);
+  doc.text(condition.toUpperCase(), margin + 24, y + 8.5);
 
   doc.setFontSize(8.5);
   doc.setTextColor(100, 116, 139);
@@ -250,35 +254,58 @@ export function generateWeatherPDF(weather: any): void {
     doc.setTextColor(148, 163, 184);
     doc.text(String(d.date), dx + dayColW / 2, y + 5.8, { align: "center" });
 
+    // Draw Weather Icon (Simple geometry)
+    const iconY = y + 9.5;
+    const iconX = dx + dayColW / 2;
+    if (d.rain !== "0%" && parseInt(d.rain) > 2) {
+      // Rain: gray cloud + blue drop
+      doc.setFillColor(148, 163, 184); // Gray cloud
+      doc.ellipse(iconX, iconY - 1, 2.5, 1.5, "F");
+      doc.ellipse(iconX - 1.5, iconY - 0.5, 1.5, 1, "F");
+      doc.ellipse(iconX + 1.5, iconY - 0.5, 1.5, 1, "F");
+      doc.setFillColor(59, 130, 246); // Blue drop
+      doc.circle(iconX, iconY + 1.5, 0.8, "F");
+    } else if (parseInt(d.tMax) > 28) {
+      // Hot/Sunny: yellow sun
+      doc.setFillColor(250, 204, 21); // Yellow
+      doc.circle(iconX, iconY, 2.2, "F");
+    } else {
+      // Partly cloudy: yellow sun + gray cloud
+      doc.setFillColor(250, 204, 21); // Yellow sun
+      doc.circle(iconX - 1, iconY - 0.5, 1.8, "F");
+      doc.setFillColor(203, 213, 225); // Light gray cloud
+      doc.ellipse(iconX + 1, iconY + 0.5, 2, 1.2, "F");
+    }
+
     // Max pill (Yellow)
     doc.setFillColor(245, 158, 11);
-    doc.roundedRect(dx + 1, y + 7.5, dayColW - 2, 4, 1, 1, "F");
+    doc.roundedRect(dx + 1, y + 14, dayColW - 2, 4, 1, 1, "F");
     doc.setFontSize(5.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 255, 255);
-    doc.text(String(d.tMax), dx + dayColW / 2, y + 10.5, { align: "center" });
+    doc.text(String(d.tMax), dx + dayColW / 2, y + 17, { align: "center" });
 
     // Min pill (Olive / Green)
     doc.setFillColor(163, 230, 53);
-    doc.roundedRect(dx + 1, y + 12.5, dayColW - 2, 4, 1, 1, "F");
+    doc.roundedRect(dx + 1, y + 19, dayColW - 2, 4, 1, 1, "F");
     doc.setTextColor(30, 41, 59);
-    doc.text(String(d.tMin), dx + dayColW / 2, y + 15.5, { align: "center" });
+    doc.text(String(d.tMin), dx + dayColW / 2, y + 22, { align: "center" });
 
     // Rain probability
     doc.setFontSize(5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 116, 139);
-    doc.text(String(d.rain), dx + dayColW / 2, y + 19.5, { align: "center" });
+    doc.text(String(d.rain), dx + dayColW / 2, y + 26, { align: "center" });
 
     // Predictability gray bar
     doc.setFillColor(226, 232, 240);
-    doc.rect(dx + 1.5, y + 21, dayColW - 3, 2, "F");
+    doc.rect(dx + 1.5, y + 27.5, dayColW - 3, 2, "F");
     doc.setFontSize(4.5);
     doc.setTextColor(148, 163, 184);
-    doc.text(String(d.prev), dx + dayColW / 2, y + 25.5, { align: "center" });
+    doc.text(String(d.prev), dx + dayColW / 2, y + 32, { align: "center" });
   });
 
-  y += 27;
+  y += 34;
 
   doc.setFontSize(6);
   doc.setFont("helvetica", "italic");

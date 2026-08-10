@@ -152,48 +152,52 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(15, 23, 42);
-  doc.text("Tous les paramètres de l'observation", margin, y);
+  doc.text("Données Agronomiques Détaillées", margin, y);
   y += 5;
 
-  // Parameter grid box
+  // Multi-column Parameter grid box
   const gridY = y;
-  const gridHeight = 32;
-  doc.setFillColor(248, 250, 252); // #f8faf9
+  const gridHeight = 42;
+  doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(margin, gridY, cardWidth, gridHeight, 2, 2, "FD");
+  doc.roundedRect(margin, gridY, cardWidth, gridHeight, 3, 3, "FD");
 
-  const colWidth = cardWidth / 4;
+  const colWidth = cardWidth / 2; // 2 columns for a more professional look
   const params = [
-    { label: "Culture", val: obs.culture || "Inconnue" },
-    { label: "Variété", val: obs.variete || "Non spécifiée" },
-    { label: "Domaine", val: obs.siteName || "Agadir" },
-    { label: "Parcelle", val: obs.plotName || "P1" },
-    { label: "Maladie principale", val: obs.diagnosis?.primaryDisease || "Aucune" },
-    { label: "Symptômes", val: obs.phenotypicTraits?.diseasesOrDeficiencies?.join(", ") || "Aspect normal" },
-    { label: "GPS Latitude", val: obs.latitude ? obs.latitude.toFixed(4) : "Non géolocalisé" },
-    { label: "GPS Longitude", val: obs.longitude ? obs.longitude.toFixed(4) : "Non géolocalisé" },
+    { label: "Culture analysée", val: obs.culture || "Inconnue" },
+    { label: "Variété / Espèce", val: obs.variete || "Non spécifiée" },
+    { label: "Domaine & Emplacement", val: obs.siteName || "Agadir" },
+    { label: "Identification Parcelle", val: obs.plotName || "P1" },
+    { label: "Maladie principale détectée", val: obs.diagnosis?.primaryDisease || "Aucune anomalie" },
+    { label: "Symptômes phénotypiques", val: obs.phenotypicTraits?.diseasesOrDeficiencies?.join(", ") || "Aspect normal" },
+    { label: "Coordonnées Latitude", val: obs.latitude ? obs.latitude.toFixed(6) : "Non géolocalisé" },
+    { label: "Coordonnées Longitude", val: obs.longitude ? obs.longitude.toFixed(6) : "Non géolocalisé" },
   ];
 
+  // Draw vertical separator line
+  doc.setDrawColor(226, 232, 240);
+  doc.line(margin + colWidth, gridY + 4, margin + colWidth, gridY + gridHeight - 4);
+
   params.forEach((p, idx) => {
-    const col = idx % 4;
-    const row = Math.floor(idx / 4);
-    const px = margin + col * colWidth + 4;
-    const py = gridY + 6 + row * 13;
+    const col = idx % 2;
+    const row = Math.floor(idx / 2);
+    const px = margin + col * colWidth + 6;
+    const py = gridY + 8 + row * 9;
 
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 116, 139);
-    doc.text(String(p.label), px, py);
+    doc.text(String(p.label).toUpperCase(), px, py);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
     const strVal = String(p.val);
-    const truncatedVal = strVal.length > 20 ? strVal.substring(0, 18) + "..." : strVal;
-    doc.text(truncatedVal, px, py + 4.5);
+    const truncatedVal = strVal.length > 40 ? strVal.substring(0, 38) + "..." : strVal;
+    doc.text(truncatedVal, px, py + 3.8);
   });
 
-  y += gridHeight + 8;
+  y += gridHeight + 10;
 
   // Alertes agronomiques Section
   doc.setFont("helvetica", "bold");
@@ -338,6 +342,18 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
           pageY = 26;
         }
 
+        // Image Frame
+        const framePadding = 3;
+        const frameX = margin + (cardWidth - finalWidth) / 2 - framePadding;
+        const frameY = pageY - framePadding;
+        const frameW = finalWidth + framePadding * 2;
+        const frameH = finalHeight + framePadding * 2;
+        
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(frameX, frameY, frameW, frameH, 2, 2, "FD");
+
         const xOffset = margin + (cardWidth - finalWidth) / 2;
 
         const canvas = document.createElement("canvas");
@@ -348,13 +364,19 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
           ctx.drawImage(img, 0, 0);
           const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
           doc.addImage(dataUrl, "JPEG", xOffset, pageY, finalWidth, finalHeight);
-          pageY += finalHeight + 4;
+          
+          // Image border
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.2);
+          doc.rect(xOffset, pageY, finalWidth, finalHeight, "D");
+          
+          pageY += finalHeight + 8;
 
           doc.setFont("helvetica", "normal");
-          doc.setFontSize(8);
+          doc.setFontSize(8.5);
           doc.setTextColor(100, 116, 139);
           doc.text(`Photographie #${i + 1} - Capture haute définition AgroScan`, pageWidth / 2, pageY, { align: "center" });
-          pageY += 10;
+          pageY += 12;
         }
       } catch (e) {
         console.error("Failed to add image to PDF", e);
@@ -366,14 +388,34 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
   const totalPages = (doc as any).internal.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
+    
+    // Draw subtle footer line
     doc.setDrawColor(226, 232, 240);
-    doc.line(margin, pageHeight - 10, pageWidth - margin, pageHeight - 10);
+    doc.setLineWidth(0.3);
+    doc.line(margin, pageHeight - 14, pageWidth - margin, pageHeight - 14);
 
-    doc.setFontSize(8);
+    // Draw Leaf Logo
+    const logoX = margin;
+    const logoY = pageHeight - 7;
+    doc.setFillColor(22, 101, 52); // Dark Green
+    doc.circle(logoX + 2, logoY, 2.5, "F");
+    doc.setFillColor(34, 197, 94); // Light Green
+    doc.circle(logoX + 3.5, logoY - 1.5, 1.5, "F");
+
+    // Text next to logo
+    doc.setFontSize(8.5);
+    doc.setTextColor(51, 65, 85);
+    doc.setFont("helvetica", "bold");
+    doc.text("AgroScan IA", logoX + 8, logoY + 1);
+
+    doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
     doc.setFont("helvetica", "normal");
-    doc.text("AgroScan IA · rapport généré automatiquement", margin, pageHeight - 5);
-    doc.text(`Page ${p} / ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: "right" });
+    doc.text("· Rapport généré automatiquement", logoX + 32, logoY + 1);
+
+    // Page numbers
+    doc.setFontSize(8);
+    doc.text(`Page ${p} / ${totalPages}`, pageWidth - margin, logoY + 1, { align: "right" });
   }
 
   doc.save(`AgroScan_Rapport_Observation_${obs.id.substring(0, 8)}.pdf`);

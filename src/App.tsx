@@ -18,6 +18,7 @@ import {
   Edit2,
   Save,
   RefreshCw,
+  Clock,
   X,
   TrendingUp,
   Calendar,
@@ -4094,6 +4095,95 @@ export default function App() {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
+  const syncSingleOfflineObservation = async (item: OfflineObservation) => {
+    if (!isOnline || !user) return false;
+    try {
+      await updateOfflineStatus(item.id, "syncing");
+      setOfflineObservations((prev) =>
+        prev.map((o) => (o.id === item.id ? { ...o, status: "syncing" } : o)),
+      );
+
+      // Upload to Storage first
+      const storagePath = `observations/${user.uid}/${Date.now()}_offline_${item.id}.jpg`;
+      const blob = await dataUrlToBlob(item.fileData);
+      const storageUrl = await uploadImage(blob, storagePath);
+
+      const hasOfflineAnalysis = !!(item.metadata as any).offlineAnalysis;
+      const offlineData = hasOfflineAnalysis ? (item.metadata as any).offlineAnalysis : {};
+
+      const observationData = {
+        userId: user.uid,
+        location: {
+          lat: (item.metadata as any).lat || 0,
+          lng: (item.metadata as any).lng || 0,
+        },
+        createdAt: serverTimestamp(),
+        capturedAt: item.capturedAt || new Date().toISOString(),
+        imageUrl: storageUrl,
+        imageUrls: [storageUrl],
+        culture: offlineData.culture || (item.metadata as any).culture || "En attente d'analyse",
+        variety: offlineData.variety || (item.metadata as any).variety || "En attente d'analyse",
+        species: offlineData.species || (item.metadata as any).species || "Inconnu",
+        family: offlineData.family || (item.metadata as any).family || "Inconnu",
+        domain: offlineData.domain || (item.metadata as any).domain || "Général",
+        bbchDominant: offlineData.bbchDominant || "",
+        bbchSecondary: offlineData.bbchSecondary || [],
+        organCounts: offlineData.organCounts || { flowers: 0, fruits: 0, details: "" },
+        phenotypicTraits: offlineData.phenotypicTraits || {
+          color: "?",
+          shape: "?",
+          size: "?",
+          healthStatus: "?",
+          diseasesOrDeficiencies: [],
+        },
+        userNotes: (item.metadata as any).userNotes || "Capture hors-ligne",
+        status: hasOfflineAnalysis ? "completed" : "pending",
+        plantingDate: (item.metadata as any).plantingDate || null,
+        breeder: (item.metadata as any).breeder || null,
+        pruningDate: (item.metadata as any).pruningDate || null,
+        harvestQuantity: (item.metadata as any).harvestQuantity || null,
+        density: (item.metadata as any).density || null,
+        fruitFirmness: (item.metadata as any).fruitFirmness || null,
+        defects: (item.metadata as any).defects || null,
+      };
+
+      const docRef = await addDoc(
+        collection(db, "observations"),
+        observationData,
+      );
+
+      if (!hasOfflineAnalysis) {
+        // Trigger background analysis
+        const images = [
+          {
+            base64Image: item.fileData.split(",")[1],
+            mimeType: item.fileType || "image/jpeg",
+            dataUrl: item.fileData,
+          },
+        ];
+        runBackgroundAnalysis(docRef.id, images, item.metadata);
+      }
+
+      // Remove from IndexedDB
+      await deleteOfflineObservation(item.id);
+      setOfflineObservations((prev) => prev.filter((o) => o.id !== item.id));
+      return true;
+    } catch (e) {
+      console.error("Sync failed for item", item.id, e);
+      notifyUser(
+        `Erreur de synchronisation pour l'élément hors-ligne`,
+        "error",
+      );
+      await updateOfflineStatus(item.id, "error", String(e));
+      setOfflineObservations((prev) =>
+        prev.map((o) =>
+          o.id === item.id ? { ...o, status: "error", error: String(e) } : o,
+        ),
+      );
+      return false;
+    }
+  };
+
   const syncOfflineData = async () => {
     if (!isOnline || !user || isSyncing) return;
 
@@ -4124,92 +4214,10 @@ export default function App() {
 
     for (const item of queue) {
       if (item.status === "syncing") continue;
-
-      try {
-        await updateOfflineStatus(item.id, "syncing");
-        setOfflineObservations((prev) =>
-          prev.map((o) => (o.id === item.id ? { ...o, status: "syncing" } : o)),
-        );
-
-        // Upload to Storage first
-        const storagePath = `observations/${user.uid}/${Date.now()}_offline_${item.id}.jpg`;
-        const blob = await dataUrlToBlob(item.fileData);
-        const storageUrl = await uploadImage(blob, storagePath);
-
-        const hasOfflineAnalysis = !!(item.metadata as any).offlineAnalysis;
-        const offlineData = hasOfflineAnalysis ? (item.metadata as any).offlineAnalysis : {};
-
-        const observationData = {
-          userId: user.uid,
-          location: {
-            lat: (item.metadata as any).lat || 0,
-            lng: (item.metadata as any).lng || 0,
-          },
-          createdAt: serverTimestamp(),
-          capturedAt: item.capturedAt || new Date().toISOString(),
-          imageUrl: storageUrl,
-          imageUrls: [storageUrl],
-          culture: offlineData.culture || (item.metadata as any).culture || "En attente d'analyse",
-          variety: offlineData.variety || (item.metadata as any).variety || "En attente d'analyse",
-          species: offlineData.species || (item.metadata as any).species || "Inconnu",
-          family: offlineData.family || (item.metadata as any).family || "Inconnu",
-          domain: offlineData.domain || (item.metadata as any).domain || "Général",
-          bbchDominant: offlineData.bbchDominant || "",
-          bbchSecondary: offlineData.bbchSecondary || [],
-          organCounts: offlineData.organCounts || { flowers: 0, fruits: 0, details: "" },
-          phenotypicTraits: offlineData.phenotypicTraits || {
-            color: "?",
-            shape: "?",
-            size: "?",
-            healthStatus: "?",
-            diseasesOrDeficiencies: [],
-          },
-          userNotes: (item.metadata as any).userNotes || "Capture hors-ligne",
-          status: hasOfflineAnalysis ? "completed" : "pending",
-          plantingDate: (item.metadata as any).plantingDate || null,
-          breeder: (item.metadata as any).breeder || null,
-          pruningDate: (item.metadata as any).pruningDate || null,
-          harvestQuantity: (item.metadata as any).harvestQuantity || null,
-          density: (item.metadata as any).density || null,
-          fruitFirmness: (item.metadata as any).fruitFirmness || null,
-          defects: (item.metadata as any).defects || null,
-        };
-
-        const docRef = await addDoc(
-          collection(db, "observations"),
-          observationData,
-        );
-
-        if (!hasOfflineAnalysis) {
-          // Trigger background analysis
-          const images = [
-            {
-              base64Image: item.fileData.split(",")[1],
-              mimeType: item.fileType || "image/jpeg",
-              dataUrl: item.fileData,
-            },
-          ];
-          runBackgroundAnalysis(docRef.id, images, item.metadata);
-        }
-
-        // Remove from IndexedDB
-        await deleteOfflineObservation(item.id);
-        setOfflineObservations((prev) => prev.filter((o) => o.id !== item.id));
-        syncedCount++;
-      } catch (e) {
-        console.error("Sync failed for item", item.id, e);
-        notifyUser(
-          `Erreur de synchronisation pour l'élément hors-ligne`,
-          "error",
-        );
-        await updateOfflineStatus(item.id, "error", String(e));
-        setOfflineObservations((prev) =>
-          prev.map((o) =>
-            o.id === item.id ? { ...o, status: "error", error: String(e) } : o,
-          ),
-        );
-      }
+      const success = await syncSingleOfflineObservation(item);
+      if (success) syncedCount++;
     }
+    
     setIsSyncing(false);
     if (syncedCount > 0) {
       triggerHaptic("success");
@@ -5679,38 +5687,71 @@ export default function App() {
       )}
 
       {offlineObservations.length > 0 && (
-        <div
-          className={`p-4 border-b flex items-center justify-between transition-colors ${isSyncing ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20"}`}
-        >
-          <div className="flex items-center gap-3">
-            {isSyncing ? (
-              <RefreshCw size={18} className="text-emerald-500 animate-spin" />
-            ) : (
-              <Cloud size={18} className="text-amber-400" />
-            )}
-            <div>
-              <p
-                className={`text-xs font-bold uppercase tracking-wider ${isSyncing ? "text-emerald-400" : "text-amber-400"}`}
-              >
-                {isSyncing
-                  ? "Synchronisation en cours..."
-                  : `${offlineObservations.length} observations en attente`}
-              </p>
-              {!isOnline && (
-                <p className="text-[10px] text-amber-400 font-medium">
-                  En attente de connexion internet
-                </p>
+        <div className="bg-[#161c18] border-b border-white/5">
+          <div
+            className={`p-4 flex items-center justify-between transition-colors ${isSyncing ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20"}`}
+          >
+            <div className="flex items-center gap-3">
+              {isSyncing ? (
+                <RefreshCw size={18} className="text-emerald-500 animate-spin" />
+              ) : (
+                <Cloud size={18} className="text-amber-400" />
               )}
+              <div>
+                <p
+                  className={`text-xs font-bold uppercase tracking-wider ${isSyncing ? "text-emerald-400" : "text-amber-400"}`}
+                >
+                  {isSyncing
+                    ? "Synchronisation en cours..."
+                    : `${offlineObservations.length} observations en attente`}
+                </p>
+                {!isOnline && (
+                  <p className="text-[10px] text-amber-400 font-medium">
+                    En attente de connexion internet
+                  </p>
+                )}
+              </div>
             </div>
+            {isOnline && !isSyncing && (
+              <button
+                onClick={() => syncOfflineData()}
+                className="px-3 py-1.5 bg-amber-600 text-white text-[10px] font-bold rounded-xl uppercase tracking-widest hover:bg-amber-700 transition-colors shadow-none"
+              >
+                Tout Sync
+              </button>
+            )}
           </div>
-          {isOnline && !isSyncing && (
-            <button
-              onClick={() => syncOfflineData()}
-              className="px-3 py-1.5 bg-amber-600 text-white text-[10px] font-bold rounded-xl uppercase tracking-widest hover:bg-amber-700 transition-colors shadow-none"
-            >
-              Synchroniser
-            </button>
-          )}
+          
+          <div className="max-h-48 overflow-y-auto px-4 py-2 space-y-2 bg-[#0d120f]/50">
+             {offlineObservations.map((obs) => (
+               <div key={obs.id} className="flex items-center justify-between p-2 bg-[#1a231d] rounded-lg border border-white/5">
+                 <div className="flex items-center gap-3">
+                    <img src={obs.fileData} alt="" className="w-10 h-10 rounded-md object-cover border border-white/10" />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-200">
+                        {obs.metadata?.culture || obs.metadata?.offlineAnalysis?.culture || 'Observation'}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(obs.capturedAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    {obs.status === 'syncing' && <RefreshCw size={14} className="text-emerald-500 animate-spin" />}
+                    {obs.status === 'pending' && <Clock size={14} className="text-amber-400" />}
+                    {obs.status === 'error' && (
+                      <button 
+                        onClick={() => syncSingleOfflineObservation(obs)} 
+                        className="p-1.5 bg-red-500/10 rounded-md text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors" 
+                        title="Réessayer"
+                      >
+                         <RefreshCw size={14} />
+                      </button>
+                    )}
+                 </div>
+               </div>
+             ))}
+          </div>
         </div>
       )}
 
