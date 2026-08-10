@@ -183,12 +183,13 @@ export async function generateObservationPDF(obs: ObservationDataForReport): Pro
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 116, 139);
-    doc.text(p.label, px, py);
+    doc.text(String(p.label), px, py);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
-    const truncatedVal = p.val.length > 20 ? p.val.substring(0, 18) + "..." : p.val;
+    const strVal = String(p.val);
+    const truncatedVal = strVal.length > 20 ? strVal.substring(0, 18) + "..." : strVal;
     doc.text(truncatedVal, px, py + 4.5);
   });
 

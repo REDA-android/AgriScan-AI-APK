@@ -2,8 +2,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Search, MapPin, Compass, Navigation, Maximize2, Layers, CheckCircle2, AlertTriangle, XCircle, Sparkles, Filter, X } from 'lucide-react';
 import { useState, useMemo, FormEvent, useEffect, useCallback, useRef } from 'react';
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents, Circle } from 'react-leaflet';
+import { MapContainer, Marker, Popup, useMap, useMapEvents, Circle } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
+import OfflineTileLayer from './OfflineTileLayer';
 
 // High Resolution Marker Icons
 const createDefaultIcon = () => L.divIcon({
@@ -399,7 +400,7 @@ export default function MapView({
 
           {/* Optimized Fast Tile Layer Providers */}
           {mapType === 'satellite-4k' && (
-            <TileLayer
+            <OfflineTileLayer
               attribution='&copy; Google Maps Satellite'
               url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
               subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
@@ -411,7 +412,7 @@ export default function MapView({
           )}
 
           {mapType === 'plan-hd' && (
-            <TileLayer
+            <OfflineTileLayer
               attribution='&copy; <a href="https://carto.com/">CARTO</a> Voyager HD'
               url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
               subdomains={['a', 'b', 'c', 'd']}
@@ -421,7 +422,7 @@ export default function MapView({
           )}
 
           {mapType === 'dark-hd' && (
-            <TileLayer
+            <OfflineTileLayer
               attribution='&copy; <a href="https://carto.com/">CARTO</a> Dark Matter HD'
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               subdomains={['a', 'b', 'c', 'd']}
@@ -431,7 +432,7 @@ export default function MapView({
           )}
 
           {mapType === 'esri-hd' && (
-            <TileLayer
+            <OfflineTileLayer
               attribution='&copy; Esri World Imagery HD'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
               maxNativeZoom={19}
