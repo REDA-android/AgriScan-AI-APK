@@ -1,0 +1,23 @@
+{
+  "name": "AgriScan AI",
+  "short_name": "AgriScan",
+  "description": "Application d'intelligence artificielle pour le suivi agricole et l'analyse de cultures.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d120f",
+  "theme_color": "#10b981",
+  "lang": "fr",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
