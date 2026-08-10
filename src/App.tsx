@@ -1,3 +1,4 @@
+import { LocalNotifications } from "@capacitor/local-notifications";
 import React, {
   useEffect,
   useState,
@@ -1848,6 +1849,45 @@ function WeatherCard({
   const [viewMode, setViewMode] = useState<"forecast" | "history">("forecast");
   const [subTab, setSubTab] = useState<"meteo" | "windy">("meteo");
   const [windyOverlay, setWindyOverlay] = useState<"temp" | "rain" | "wind" | "clouds" | "gust">("temp");
+
+  useEffect(() => {
+    const checkAlerts = async () => {
+      if (!weather || !weather.current) return;
+      
+      const { temp, tempMin, tempMax, windSpeed } = weather.current;
+      const t = Number(temp);
+      const alerts = [];
+      
+      if (t > 35) alerts.push("⚠️ Alerte forte chaleur : " + t + "°C ! Risque de stress hydrique.");
+      if (t < 2) alerts.push("❄️ Alerte risque de gel : " + t + "°C ! Protégez vos cultures.");
+      if (Number(windSpeed) > 30) alerts.push("💨 Alerte vent fort ! Conditions de pulvérisation déconseillées.");
+      
+      if (alerts.length > 0) {
+        try {
+          const permStatus = await LocalNotifications.checkPermissions();
+          if (permStatus.display !== 'granted') {
+            await LocalNotifications.requestPermissions();
+          }
+          
+          await LocalNotifications.schedule({
+            notifications: alerts.map((msg, idx) => ({
+              title: "AgroScan IA - Alerte Météo",
+              body: msg,
+              id: Date.now() + idx,
+              schedule: { at: new Date(Date.now() + 1000 * (idx + 1)) },
+              sound: undefined,
+              attachments: undefined,
+              actionTypeId: "",
+              extra: null
+            }))
+          });
+        } catch (e) {
+          console.warn("LocalNotifications not available (e.g. running in web)", e);
+        }
+      }
+    };
+    checkAlerts();
+  }, [weather]);
   const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {

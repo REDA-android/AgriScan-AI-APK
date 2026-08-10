@@ -1,5 +1,69 @@
 import jsPDF from "jspdf";
 
+
+// Spline interpolation helper for smooth charts
+function getBezierPoints(pts: {x: number, y: number}[], tension = 0.3, numOfSegments = 16) {
+  let res: {x: number, y: number}[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = i > 0 ? pts[i - 1] : pts[0];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = i != pts.length - 2 ? pts[i + 2] : p2;
+    
+    const cp1x = p1.x + (p2.x - p0.x) * tension;
+    const cp1y = p1.y + (p2.y - p0.y) * tension;
+    const cp2x = p2.x - (p3.x - p1.x) * tension;
+    const cp2y = p2.y - (p3.y - p1.y) * tension;
+    
+    for (let t = 0; t <= numOfSegments; t++) {
+      const t1 = t / numOfSegments;
+      const t2 = t1 * t1;
+      const t3 = t2 * t1;
+      
+      const x = 
+        (1 - 3*t1 + 3*t2 - t3) * p1.x +
+        (3*t1 - 6*t2 + 3*t3) * cp1x +
+        (3*t2 - 3*t3) * cp2x +
+        (t3) * p2.x;
+        
+      const y = 
+        (1 - 3*t1 + 3*t2 - t3) * p1.y +
+        (3*t1 - 6*t2 + 3*t3) * cp1y +
+        (3*t2 - 3*t3) * cp2y +
+        (t3) * p2.y;
+        
+      res.push({x, y});
+    }
+  }
+  return res;
+}
+
+function drawSmoothCurve(doc: any, pts: {x: number, y: number}[], color: number[], lineWidth: number = 0.8) {
+  if (pts.length < 2) return;
+  const smoothPts = getBezierPoints(pts);
+  doc.setDrawColor(color[0], color[1], color[2]);
+  doc.setLineWidth(lineWidth);
+  for (let i = 0; i < smoothPts.length - 1; i++) {
+    doc.line(smoothPts[i].x, smoothPts[i].y, smoothPts[i + 1].x, smoothPts[i + 1].y);
+  }
+}
+
+function drawSmoothArea(doc: any, ptsTop: {x: number, y: number}[], ptsBottom: {x: number, y: number}[], color: number[]) {
+  if (ptsTop.length < 2 || ptsBottom.length < 2) return;
+  const smoothTop = getBezierPoints(ptsTop);
+  const smoothBottom = getBezierPoints(ptsBottom).reverse();
+  const allPts = [...smoothTop, ...smoothBottom];
+  
+  doc.setFillColor(color[0], color[1], color[2]);
+  const startX = allPts[0].x;
+  const startY = allPts[0].y;
+  let lines = [];
+  for (let i = 1; i < allPts.length; i++) {
+    lines.push([allPts[i].x - allPts[i - 1].x, allPts[i].y - allPts[i - 1].y]);
+  }
+  doc.lines(lines, startX, startY, [1, 1], 'F', true);
+}
+
 export function generateWeatherPDF(weather: any): void {
   if (!weather || !weather.current) return;
 
@@ -356,35 +420,33 @@ export function generateWeatherPDF(weather: any): void {
     doc.text(String(v), margin - 3, gy + 1, { align: "right" });
   });
 
-  // Shaded 10-year normals band
-  doc.setFillColor(226, 232, 240);
-  doc.rect(margin, y + 5, cardWidth, 14, "F");
-
   // Curves for Max (Red) and Min (Blue)
   const tempMaxPts = [25, 25, 25, 25, 25, 32, 30, 30, 27, 26, 25, 25, 25, 27];
   const tempMinPts = [20, 19, 19, 19, 19, 19, 20, 21, 19, 19, 19, 18, 20, 19];
+  
+  // 10-year normals (fake data for smooth polygon)
+  const normalMaxPts = [28, 28.5, 28, 28, 28.5, 28.5, 28, 27.5, 27.5, 28, 28.5, 28.5, 28, 28];
+  const normalMinPts = [19, 19, 19.5, 19.5, 19, 19.5, 19.5, 20, 20, 19.5, 19.5, 19, 19.5, 19.5];
+
+  const toXY = (val: number, i: number) => ({
+    x: margin + (i / 13) * cardWidth,
+    y: y + tempChartH - ((val - 18) / 18) * tempChartH
+  });
+
+  const pMax = tempMaxPts.map(toXY);
+  const pMin = tempMinPts.map(toXY);
+  const nMax = normalMaxPts.map(toXY);
+  const nMin = normalMinPts.map(toXY);
+
+  // Shaded 10-year normals band
+  drawSmoothArea(doc, nMax, nMin, [226, 232, 240]);
 
   // Max line
-  doc.setDrawColor(220, 38, 38);
-  doc.setLineWidth(0.8);
-  for (let i = 0; i < tempMaxPts.length - 1; i++) {
-    const x1 = margin + (i / 13) * cardWidth;
-    const y1 = y + tempChartH - ((tempMaxPts[i] - 18) / 18) * tempChartH;
-    const x2 = margin + ((i + 1) / 13) * cardWidth;
-    const y2 = y + tempChartH - ((tempMaxPts[i + 1] - 18) / 18) * tempChartH;
-    doc.line(x1, y1, x2, y2);
-  }
-
+  drawSmoothCurve(doc, pMax, [220, 38, 38], 0.8);
+  
   // Min line
-  doc.setDrawColor(37, 99, 235);
-  doc.setLineWidth(0.8);
-  for (let i = 0; i < tempMinPts.length - 1; i++) {
-    const x1 = margin + (i / 13) * cardWidth;
-    const y1 = y + tempChartH - ((tempMinPts[i] - 18) / 18) * tempChartH;
-    const x2 = margin + ((i + 1) / 13) * cardWidth;
-    const y2 = y + tempChartH - ((tempMinPts[i + 1] - 18) / 18) * tempChartH;
-    doc.line(x1, y1, x2, y2);
-  }
+  drawSmoothCurve(doc, pMin, [37, 99, 235], 0.8);
+
 
   // X Axis dates
   const xDates = ["10/08", "12/08", "14/08", "16/08", "18/08", "20/08", "22/08", "23/08"];
@@ -515,16 +577,31 @@ export function generateWeatherPDF(weather: any): void {
       doc.text("25/08", mx + gridColW - 8, my + gridRowH - 2);
 
       // Shaded 10-year mean band
-      doc.setFillColor(226, 232, 240);
-      doc.rect(mx + 8, my + 6, gridColW - 10, 7, "F");
+      const ptsNormalTop = [
+        {x: mx + 8, y: my + 6},
+        {x: mx + 20, y: my + 5},
+        {x: mx + 32, y: my + 7},
+        {x: mx + 44, y: my + 6},
+        {x: mx + gridColW - 2, y: my + 5}
+      ];
+      const ptsNormalBottom = [
+        {x: mx + 8, y: my + 13},
+        {x: mx + 20, y: my + 12},
+        {x: mx + 32, y: my + 14},
+        {x: mx + 44, y: my + 13},
+        {x: mx + gridColW - 2, y: my + 12}
+      ];
+      drawSmoothArea(doc, ptsNormalTop, ptsNormalBottom, [226, 232, 240]);
 
       // Curve
-      doc.setDrawColor(p.color[0], p.color[1], p.color[2]);
-      doc.setLineWidth(0.6);
-      doc.line(mx + 8, my + 11, mx + 20, my + 10);
-      doc.line(mx + 20, my + 10, mx + 32, my + 8);
-      doc.line(mx + 32, my + 8, mx + 44, my + 12);
-      doc.line(mx + 44, my + 12, mx + gridColW - 2, my + 7);
+      const curvePts = [
+        {x: mx + 8, y: my + 11},
+        {x: mx + 20, y: my + 10},
+        {x: mx + 32, y: my + 8},
+        {x: mx + 44, y: my + 12},
+        {x: mx + gridColW - 2, y: my + 7}
+      ];
+      drawSmoothCurve(doc, curvePts, p.color, 0.6);
     }
   });
 
@@ -609,19 +686,42 @@ export function generateWeatherPDF(weather: any): void {
     doc.text("10/07", mx + 8, my + gridRowH - 2);
     doc.text("09/08", mx + gridColW - 8, my + gridRowH - 2);
 
-    doc.setFillColor(226, 232, 240);
-    doc.rect(mx + 8, my + 6, gridColW - 10, 7, "F");
+      // Shaded 10-year mean band
+      const ptsNormalTop = [
+        {x: mx + 8, y: my + 6},
+        {x: mx + 18, y: my + 7},
+        {x: mx + 28, y: my + 5},
+        {x: mx + 38, y: my + 6},
+        {x: mx + gridColW - 2, y: my + 5}
+      ];
+      const ptsNormalBottom = [
+        {x: mx + 8, y: my + 13},
+        {x: mx + 18, y: my + 14},
+        {x: mx + 28, y: my + 12},
+        {x: mx + 38, y: my + 13},
+        {x: mx + gridColW - 2, y: my + 12}
+      ];
+      drawSmoothArea(doc, ptsNormalTop, ptsNormalBottom, [226, 232, 240]);
 
-    doc.setDrawColor(p.color[0], p.color[1], p.color[2]);
-    doc.setLineWidth(0.6);
-    if (p.isFlat) {
-      doc.line(mx + 8, my + 10, mx + gridColW - 2, my + 10);
-    } else {
-      doc.line(mx + 8, my + 11, mx + 18, my + 8);
-      doc.line(mx + 18, my + 8, mx + 28, my + 12);
-      doc.line(mx + 28, my + 12, mx + 38, my + 6);
-      doc.line(mx + 38, my + 6, mx + gridColW - 2, my + 10);
-    }
+      // Curve
+      if (p.isFlat) {
+        drawSmoothCurve(doc, [
+          {x: mx + 8, y: my + 10},
+          {x: mx + 18, y: my + 10},
+          {x: mx + 28, y: my + 10},
+          {x: mx + 38, y: my + 10},
+          {x: mx + gridColW - 2, y: my + 10}
+        ], p.color, 0.6);
+      } else {
+        const curvePts = [
+          {x: mx + 8, y: my + 11},
+          {x: mx + 18, y: my + 8},
+          {x: mx + 28, y: my + 12},
+          {x: mx + 38, y: my + 6},
+          {x: mx + gridColW - 2, y: my + 10}
+        ];
+        drawSmoothCurve(doc, curvePts, p.color, 0.6);
+      }
   });
 
   y += 5 * (gridRowH + 5) + 4;
