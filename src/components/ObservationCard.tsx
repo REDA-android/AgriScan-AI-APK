@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { MapPin, Calendar, ChevronRight, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { MapPin, Calendar, ChevronRight, AlertCircle, CheckCircle2, Clock, FileText } from 'lucide-react';
 import { Observation } from '../types';
 
 interface ObservationCardProps {
@@ -81,7 +81,39 @@ const ObservationCard: React.FC<ObservationCardProps> = ({ observation, onClick,
               <Calendar className="w-3 h-3 text-slate-500" />
               {new Date(observation.capturedAt).toLocaleDateString()}
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const { generateObservationPDF } = await import('../services/pdfReportService');
+                  generateObservationPDF({
+                    id: observation.id,
+                    capturedAt: observation.createdAt || new Date().toISOString(),
+                    culture: observation.culture,
+                    variete: observation.variety,
+                    siteName: observation.domain,
+                    plotName: observation.plot,
+                    latitude: observation.latitude,
+                    longitude: observation.longitude,
+                    diagnosis: {
+                      primaryDisease: observation.analysis?.diseaseName,
+                      healthStatus: observation.status === "completed" ? (observation.analysis?.severity === "CRITICAL" ? "critical" : observation.analysis?.severity === "WARNING" ? "warning" : "healthy") : "healthy",
+                      confidence: observation.analysis?.confidence,
+                      description: observation.analysis?.description,
+                      treatments: observation.analysis?.biologicalTreatments || observation.analysis?.treatment,
+                    },
+                    notes: observation.userNotes,
+                    images: observation.images || (observation.imageUrl ? [observation.imageUrl] : []),
+                  });
+                }}
+                className="p-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors"
+                title="Exporter le rapport PDF"
+              >
+                <FileText className="w-3.5 h-3.5" />
+              </button>
+              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+            </div>
           </div>
         </div>
       </div>

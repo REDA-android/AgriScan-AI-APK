@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, MapPin, Calendar, Trash2, RefreshCw, Save, Info, CheckCircle2, AlertCircle, Clock, ChevronRight, ChevronLeft, Maximize2, Edit2, X, Share2, Download as QrDownload, FileText, MessageSquare, Send, Mic, Square, Paperclip, Volume2, Video, File, Film, Image as ImageIcon } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Observation, CommentAttachment, AudioNote, MediaNote } from '../types';
+import VoiceDictationButton from './VoiceDictationButton';
 
 interface ObservationDetailProps {
   observation: Observation;
@@ -540,12 +541,21 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
           </div>
 
           {isEditingNotes ? (
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full h-32 p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-100 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none transition-all placeholder-slate-500"
-              placeholder="Saisissez vos observations terrain ici..."
-            />
+            <div className="space-y-2">
+              <div className="flex justify-end">
+                <VoiceDictationButton
+                  currentValue={notes}
+                  onTranscript={(text) => setNotes(text)}
+                  lang="fr-FR"
+                />
+              </div>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full h-32 p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all placeholder-slate-500"
+                placeholder="Saisissez vos observations terrain ici (dictée vocale disponible)..."
+              />
+            </div>
           ) : (
             <div className="p-4 bg-white/5 rounded-xl border border-white/5 min-h-[80px]">
               <p className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">

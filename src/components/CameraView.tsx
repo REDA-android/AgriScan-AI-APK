@@ -6,6 +6,7 @@ import { useRef, useState, useEffect, ChangeEvent } from 'react';
 import { compressImage } from '../utils/imageUtils';
 import { triggerHaptic } from '../utils/haptics';
 import { AudioNote, MediaNote } from '../types';
+import VoiceDictationButton from './VoiceDictationButton';
 
 export interface CaptureMetadata {
   scanType?: string;
@@ -1072,11 +1073,18 @@ export default function CameraView({
 
           {/* NOTES GÉNÉRALES */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">NOTES GÉNÉRALES</label>
+            <div className="flex justify-between items-center mb-1.5">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">NOTES GÉNÉRALES</label>
+              <VoiceDictationButton
+                currentValue={notes}
+                onTranscript={(text) => setNotes(text)}
+                lang="fr-FR"
+              />
+            </div>
             <textarea 
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Observations supplémentaires..."
+              placeholder="Observations supplémentaires (dictée vocale disponible)..."
               className="w-full px-3 py-2 bg-[#0d120f] border border-white/10 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 min-h-[70px] text-slate-100 placeholder-slate-500"
             />
           </div>
