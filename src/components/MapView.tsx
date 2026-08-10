@@ -354,6 +354,7 @@ export default function MapView({
               : 'text-slate-200 border-white/10 hover:text-emerald-400'
           }`}
           title="Filtres de la carte"
+          aria-label="Filtres de la carte"
         >
           <Filter size={18} className={activeFiltersCount > 0 ? "text-emerald-400 fill-emerald-400/20 map-control-icon" : "text-emerald-400 map-control-icon"} />
           {activeFiltersCount > 0 && (
@@ -369,6 +370,7 @@ export default function MapView({
           onClick={() => setShowLayersModal(true)}
           className="p-2.5 bg-[#121814]/95 backdrop-blur-xl hover:bg-emerald-500/20 active:scale-95 text-emerald-400 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-1.5 text-xs font-bold transition-all shrink-0 light-mode-map-btn"
           title="Fonds de carte"
+          aria-label="Fonds de carte"
         >
           <Layers size={18} className="map-control-icon" />
         </button>
