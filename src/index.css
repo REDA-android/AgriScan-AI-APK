@@ -739,3 +739,31 @@ body.light-mode header h1 {
   backdrop-filter: blur(6px);
 }
 
+
+@media print {
+  /* Hide navigation tabs and action buttons in print mode */
+  nav, .liquid-glass-nav-bar, .bottom-nav, header, button, .action-buttons, .no-print {
+    display: none !important;
+  }
+  
+  /* Reset background and text colors for clean print */
+  body, main, .observation-detail-container, .liquid-glass-card {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  /* Ensure text is readable */
+  h1, h2, h3, h4, p, span, div {
+    color: black !important;
+  }
+
+  /* Force page breaks if needed */
+  .page-break-after {
+    page-break-after: always;
+  }
+}

@@ -437,14 +437,13 @@ export default function CameraView({
         }
 
         // Only set GPS if we haven't already set EXIF location
-        setCurrentLocation(prev => {
-          if (locationSource === 'exif') return prev;
-          setLocationSource('gps');
-          return {
+        if (locationSource !== 'exif') {
+          setCurrentLocation({
             lat: position.coords.latitude,
             lng: position.coords.longitude
-          };
-        });
+          });
+          setLocationSource('gps');
+        }
       } catch (error) {
         console.warn("Geolocation error:", error);
       }
@@ -457,7 +456,7 @@ export default function CameraView({
       const queue = JSON.parse(localStorage.getItem('agroscan_offline_queue') || '[]');
       setOfflineQueue(queue.length);
     }
-  }, [locationSource, offlineQueueCount]);
+  }, [offlineQueueCount]);
 
   useEffect(() => {
     if (offlineQueueCount !== undefined) {

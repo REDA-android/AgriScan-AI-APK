@@ -286,22 +286,13 @@ export function generateWeatherPDF(weather: any): void {
   y += 4;
 
   const dayColW = cardWidth / 14; // 13.28mm
-  const daysData = weather.forecast14 || [
-    { day: "lun", date: "10/08", tMax: "25°", tMin: "20°", rain: "0%", prev: "85%" },
-    { day: "mar", date: "11/08", tMax: "25°", tMin: "19°", rain: "0%", prev: "82%" },
-    { day: "mer", date: "12/08", tMax: "25°", tMin: "19°", rain: "0%", prev: "79%" },
-    { day: "jeu", date: "13/08", tMax: "25°", tMin: "19°", rain: "0%", prev: "76%" },
-    { day: "ven", date: "14/08", tMax: "25°", tMin: "19°", rain: "0%", prev: "73%" },
-    { day: "sam", date: "15/08", tMax: "32°", tMin: "19°", rain: "0%", prev: "70%" },
-    { day: "dim", date: "16/08", tMax: "30°", tMin: "20°", rain: "0%", prev: "67%" },
-    { day: "lun", date: "17/08", tMax: "30°", tMin: "21°", rain: "0%", prev: "64%" },
-    { day: "mar", date: "18/08", tMax: "27°", tMin: "19°", rain: "0%", prev: "61%" },
-    { day: "mer", date: "19/08", tMax: "26°", tMin: "19°", rain: "4%", prev: "58%" },
-    { day: "jeu", date: "20/08", tMax: "25°", tMin: "19°", rain: "4%", prev: "55%" },
-    { day: "ven", date: "21/08", tMax: "25°", tMin: "18°", rain: "2%", prev: "52%" },
-    { day: "sam", date: "22/08", tMax: "25°", tMin: "20°", rain: "3%", prev: "50%" },
-    { day: "dim", date: "23/08", tMax: "27°", tMin: "19°", rain: "4%", prev: "50%" },
-  ];
+  const allData = weather.forecast || [];
+  const todayStrShort = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  let todayIdx = allData.findIndex((d: any) => d.shortDate === todayStrShort);
+  if (todayIdx === -1) todayIdx = 31;
+  const forecastData = allData.slice(todayIdx, todayIdx + 15).slice(0, 14);
+  const historyData = allData.slice(Math.max(0, todayIdx - 30), todayIdx);
+  const daysData = forecastData;
 
   daysData.slice(0, 14).forEach((d: any, i: number) => {
     const dx = margin + i * dayColW;
@@ -316,12 +307,12 @@ export function generateWeatherPDF(weather: any): void {
     doc.setFontSize(5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(148, 163, 184);
-    doc.text(String(d.date), dx + dayColW / 2, y + 5.8, { align: "center" });
+    doc.text(String(d.shortDate || d.date), dx + dayColW / 2, y + 5.8, { align: "center" });
 
     // Draw Weather Icon (Simple geometry)
     const iconY = y + 9.5;
     const iconX = dx + dayColW / 2;
-    if (d.rain !== "0%" && parseInt(d.rain) > 2) {
+    if ((d.precipProb || d.rainProb || 0) > 20 || parseInt(d.precipQty || d.rain || "0") > 2) {
       // Rain: gray cloud + blue drop
       doc.setFillColor(148, 163, 184); // Gray cloud
       doc.ellipse(iconX, iconY - 1, 2.5, 1.5, "F");
@@ -329,7 +320,7 @@ export function generateWeatherPDF(weather: any): void {
       doc.ellipse(iconX + 1.5, iconY - 0.5, 1.5, 1, "F");
       doc.setFillColor(59, 130, 246); // Blue drop
       doc.circle(iconX, iconY + 1.5, 0.8, "F");
-    } else if (parseInt(d.tMax) > 28) {
+    } else if (parseInt(d.tempMax || d.tMax) > 28) {
       // Hot/Sunny: yellow sun
       doc.setFillColor(250, 204, 21); // Yellow
       doc.circle(iconX, iconY, 2.2, "F");
@@ -347,13 +338,13 @@ export function generateWeatherPDF(weather: any): void {
     doc.setFontSize(5.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 255, 255);
-    doc.text(String(d.tMax), dx + dayColW / 2, y + 17, { align: "center" });
+    doc.text(String(d.tempMax ? d.tempMax + "°" : d.tMax), dx + dayColW / 2, y + 17, { align: "center" });
 
     // Min pill (Olive / Green)
     doc.setFillColor(163, 230, 53);
     doc.roundedRect(dx + 1, y + 19, dayColW - 2, 4, 1, 1, "F");
     doc.setTextColor(30, 41, 59);
-    doc.text(String(d.tMin), dx + dayColW / 2, y + 22, { align: "center" });
+    doc.text(String(d.tempMin ? d.tempMin + "°" : d.tMin), dx + dayColW / 2, y + 22, { align: "center" });
 
     // Rain probability
     doc.setFontSize(5);
@@ -421,15 +412,15 @@ export function generateWeatherPDF(weather: any): void {
   });
 
   // Curves for Max (Red) and Min (Blue)
-  const tempMaxPts = [25, 25, 25, 25, 25, 32, 30, 30, 27, 26, 25, 25, 25, 27];
-  const tempMinPts = [20, 19, 19, 19, 19, 19, 20, 21, 19, 19, 19, 18, 20, 19];
+  const tempMaxPts = forecastData.map((d: any) => d.tempMax || 25);
+  const tempMinPts = forecastData.map((d: any) => d.tempMin || 20);
   
   // 10-year normals (fake data for smooth polygon)
   const normalMaxPts = [28, 28.5, 28, 28, 28.5, 28.5, 28, 27.5, 27.5, 28, 28.5, 28.5, 28, 28];
   const normalMinPts = [19, 19, 19.5, 19.5, 19, 19.5, 19.5, 20, 20, 19.5, 19.5, 19, 19.5, 19.5];
 
   const toXY = (val: number, i: number) => ({
-    x: margin + (i / 13) * cardWidth,
+    x: margin + (i / Math.max(1, tempMaxPts.length - 1)) * cardWidth,
     y: y + tempChartH - ((val - 18) / 18) * tempChartH
   });
 
@@ -449,9 +440,9 @@ export function generateWeatherPDF(weather: any): void {
 
 
   // X Axis dates
-  const xDates = ["10/08", "12/08", "14/08", "16/08", "18/08", "20/08", "22/08", "23/08"];
-  xDates.forEach((d, i) => {
-    const dx = margin + (i / 7) * cardWidth;
+  const xDates = forecastData.filter((_: any, i: number) => i % 2 === 0).map((d: any) => d.shortDate || "");
+  xDates.forEach((d: string, i: number) => {
+    const dx = margin + (i / (Math.max(1, xDates.length - 1))) * cardWidth;
     doc.text(d, dx, y + tempChartH + 3, { align: "center" });
   });
 
@@ -479,19 +470,22 @@ export function generateWeatherPDF(weather: any): void {
     doc.text(String(v), margin - 3, gy + 1, { align: "right" });
   });
 
-  // Rain probability % labels below
-  const rainProbs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 2, 3, 4];
-  rainProbs.forEach((p, i) => {
-    const rx = margin + (i / 13) * cardWidth;
-    if (p > 0) {
+  // Rain qty bars and probability labels below
+  forecastData.forEach((d: any, i: number) => {
+    const rx = margin + (i / (Math.max(1, forecastData.length - 1))) * cardWidth;
+    const pQty = d.precipQty || d.rainQty || 0;
+    const pProb = d.precipProb || d.rainProb || 0;
+    if (pQty > 0) {
       doc.setFillColor(37, 99, 235);
-      const bh = (p / 5) * (rainChartH - 4) + 1;
-      doc.rect(rx - 1.5, y + rainChartH - bh, 3, bh, "F");
+      const bh = Math.min((pQty / 5), 1) * (rainChartH - 4) + 1;
+      doc.rect(rx - 1.5, y + rainChartH - bh, 3, Math.max(1, bh), "F");
     }
     doc.setFontSize(5.5);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(22, 101, 52);
-    doc.text(`${p}%`, rx, y + rainChartH + 3, { align: "center" });
+    if (pProb > 0) {
+      doc.setTextColor(22, 101, 52);
+      doc.text(`${pProb}%`, rx, y + rainChartH + 3, { align: "center" });
+    }
   });
 
   drawFooter(1);
@@ -527,20 +521,20 @@ export function generateWeatherPDF(weather: any): void {
   const gridColW = (cardWidth - 8) / 3; // 59.3mm
   const gridRowH = 19;
 
-  const miniParamsP2 = [
-    { title: "Temp. moyenne (°C)", max: "29", min: "20", color: [37, 99, 235] },
-    { title: "Temp. max (°C)", max: "36", min: "24", color: [220, 38, 38] },
-    { title: "Temp. min (°C)", max: "23", min: "17", color: [37, 99, 235] },
-    { title: "Degrés-jours (DJ)", max: "20", min: "11", color: [234, 88, 12] },
-    { title: "Humidité min / max (%)", max: "109", min: "20", color: [16, 185, 129] },
-    { title: "ET0 (mm)", max: "7", min: "3", color: [202, 138, 4] },
-    { title: "DPV (kPa)", max: "3", min: "1", color: [147, 51, 234] },
-    { title: "PAR (W/m²)", max: "148", min: "90", color: [202, 138, 4] },
-    { title: "Précipitations (mm)", max: "2", min: "0", color: [14, 116, 144] },
-    { title: "Prob. pluie (%)", max: "5", min: "0", color: [37, 99, 235] },
-    { title: "Vent (km/h)", max: "25", min: "11", color: [71, 85, 105] },
-    { title: "Poussière (µg/m³)", max: "111", min: "-12", color: [180, 83, 9] },
-    { title: "Heures de froid (h)", max: "", min: "", color: [148, 163, 184], noData: true },
+    const miniParamsP2 = [
+    { title: "Temp. moyenne (°C)", color: [37, 99, 235], val: (d: any) => ((d.tempMax||0) + (d.tempMin||0)) / 2 },
+    { title: "Temp. max (°C)", color: [220, 38, 38], val: (d: any) => d.tempMax||0 },
+    { title: "Temp. min (°C)", color: [37, 99, 235], val: (d: any) => d.tempMin||0 },
+    { title: "Degrés-jours (DJ)", color: [234, 88, 12], val: (d: any) => d.dj||0 },
+    { title: "Humidité (%)", color: [16, 185, 129], val: (d: any) => d.humidity||0 },
+    { title: "ET0 (mm)", color: [202, 138, 4], val: (d: any) => d.et0||0 },
+    { title: "DPV (kPa)", color: [147, 51, 234], val: (d: any) => d.dpv||0 },
+    { title: "PAR (W/m²)", color: [202, 138, 4], val: (d: any) => d.par||0 },
+    { title: "Précipitations (mm)", color: [14, 116, 144], val: (d: any) => d.precipQty||0 },
+    { title: "Prob. pluie (%)", color: [37, 99, 235], val: (d: any) => d.precipProb||0 },
+    { title: "Vent (km/h)", color: [71, 85, 105], val: (d: any) => d.windSpeed||0 },
+    { title: "Poussière (µg/m³)", color: [180, 83, 9], val: (d: any) => d.dust||0 },
+    { title: "Heures de froid (h)", color: [148, 163, 184], noData: true, val: (d: any) => 0 },
   ];
 
   miniParamsP2.forEach((p, idx) => {
@@ -565,43 +559,45 @@ export function generateWeatherPDF(weather: any): void {
       doc.setTextColor(148, 163, 184);
       doc.text("donnée indisponible", mx + 2, my + 11);
     } else {
+      let extVals = [];
+      if (p.val && forecastData.length > 0) {
+         extVals = forecastData.map((d: any) => { const v = parseFloat(p.val(d)); return isNaN(v) ? 0 : v; });
+      } else {
+         extVals = [0, 0, 0];
+      }
+      
+      let minV = Math.min(...extVals);
+      let maxV = Math.max(...extVals);
+      if (minV === maxV) { maxV = minV + 1; minV = minV - 1; }
+      
       // Max / Min Y labels
       doc.setFontSize(5);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(148, 163, 184);
-      doc.text(p.max, mx + 2, my + 7.5);
-      doc.text(p.min, mx + 2, my + gridRowH - 2);
+      doc.text(Math.round(maxV).toString(), mx + 2, my + 7.5);
+      doc.text(Math.round(minV).toString(), mx + 2, my + gridRowH - 2);
 
       // Dates
-      doc.text("10/08", mx + 8, my + gridRowH - 2);
-      doc.text("25/08", mx + gridColW - 8, my + gridRowH - 2);
+      if (forecastData.length > 0) {
+        doc.text(forecastData[0].shortDate || forecastData[0].date || "", mx + 8, my + gridRowH - 2);
+        doc.text(forecastData[forecastData.length - 1].shortDate || forecastData[forecastData.length - 1].date || "", mx + gridColW - 8, my + gridRowH - 2);
+      }
 
-      // Shaded 10-year mean band
-      const ptsNormalTop = [
-        {x: mx + 8, y: my + 6},
-        {x: mx + 20, y: my + 5},
-        {x: mx + 32, y: my + 7},
-        {x: mx + 44, y: my + 6},
-        {x: mx + gridColW - 2, y: my + 5}
-      ];
-      const ptsNormalBottom = [
-        {x: mx + 8, y: my + 13},
-        {x: mx + 20, y: my + 12},
-        {x: mx + 32, y: my + 14},
-        {x: mx + 44, y: my + 13},
-        {x: mx + gridColW - 2, y: my + 12}
-      ];
+      // Shaded 10-year mean band (approx)
+      const avgY = my + 6 + (gridRowH - 8) / 2;
+      const ptsNormalTop = [ {x: mx + 8, y: avgY - 2}, {x: mx + gridColW - 2, y: avgY - 2} ];
+      const ptsNormalBottom = [ {x: mx + 8, y: avgY + 2}, {x: mx + gridColW - 2, y: avgY + 2} ];
       drawSmoothArea(doc, ptsNormalTop, ptsNormalBottom, [226, 232, 240]);
 
       // Curve
-      const curvePts = [
-        {x: mx + 8, y: my + 11},
-        {x: mx + 20, y: my + 10},
-        {x: mx + 32, y: my + 8},
-        {x: mx + 44, y: my + 12},
-        {x: mx + gridColW - 2, y: my + 7}
-      ];
-      drawSmoothCurve(doc, curvePts, p.color, 0.6);
+      const curvePts = extVals.map((v: number, i: number) => {
+         const cx = mx + 8 + (i / Math.max(1, extVals.length - 1)) * (gridColW - 10);
+         const cy = my + 6 + (1 - (v - minV) / (maxV - minV)) * (gridRowH - 8);
+         return {x: cx, y: cy};
+      });
+      if (curvePts.length >= 2) {
+        drawSmoothCurve(doc, curvePts, p.color, 0.6);
+      }
     }
   });
 
@@ -620,8 +616,10 @@ export function generateWeatherPDF(weather: any): void {
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text("Précipitations : 2 mm", margin + 4, y + 10.5);
-  doc.text("Degrés-jours : 214 DJ", margin + 65, y + 10.5);
+  const fRainTotal = forecastData.reduce((acc: number, d: any) => acc + (parseFloat(d.precipQty || d.rainQty) || 0), 0);
+  const fDjTotal = forecastData.reduce((acc: number, d: any) => acc + (parseFloat(d.dj) || 0), 0);
+  doc.text(`Précipitations : ${fRainTotal.toFixed(1)} mm`, margin + 4, y + 10.5);
+  doc.text(`Degrés-jours : ${fDjTotal.toFixed(0)} DJ`, margin + 65, y + 10.5);
 
   drawFooter(2);
 
@@ -647,20 +645,20 @@ export function generateWeatherPDF(weather: any): void {
 
   y += 6;
 
-  const miniParamsP3 = [
-    { title: "Temp. moyenne (°C)", max: "28", min: "20", color: [37, 99, 235] },
-    { title: "Temp. max (°C)", max: "36", min: "22", color: [220, 38, 38] },
-    { title: "Temp. min (°C)", max: "23", min: "18", color: [37, 99, 235] },
-    { title: "Degrés-jours (DJ)", max: "19", min: "10", color: [234, 88, 12] },
-    { title: "Humidité min / max (%)", max: "107", min: "32", color: [16, 185, 129] },
-    { title: "ET0 (mm)", max: "7", min: "3", color: [202, 138, 4] },
-    { title: "DPV (kPa)", max: "3", min: "1", color: [147, 51, 234] },
-    { title: "PAR (W/m²)", max: "156", min: "113", color: [202, 138, 4] },
-    { title: "Précipitations (mm)", max: "1", min: "0", color: [14, 116, 144] },
-    { title: "Prob. pluie (%)", max: "6", min: "-1", color: [37, 99, 235] },
-    { title: "Vent (km/h)", max: "21", min: "9", color: [71, 85, 105] },
-    { title: "Poussière (µg/m³)", max: "317", min: "33", color: [180, 83, 9] },
-    { title: "Heures de froid (h)", max: "1", min: "0", color: [37, 99, 235], isFlat: true },
+    const miniParamsP3 = [
+    { title: "Temp. moyenne (°C)", color: [37, 99, 235], val: (d: any) => ((d.tempMax||0) + (d.tempMin||0)) / 2 },
+    { title: "Temp. max (°C)", color: [220, 38, 38], val: (d: any) => d.tempMax||0 },
+    { title: "Temp. min (°C)", color: [37, 99, 235], val: (d: any) => d.tempMin||0 },
+    { title: "Degrés-jours (DJ)", color: [234, 88, 12], val: (d: any) => d.dj||0 },
+    { title: "Humidité (%)", color: [16, 185, 129], val: (d: any) => d.humidity||0 },
+    { title: "ET0 (mm)", color: [202, 138, 4], val: (d: any) => d.et0||0 },
+    { title: "DPV (kPa)", color: [147, 51, 234], val: (d: any) => d.dpv||0 },
+    { title: "PAR (W/m²)", color: [202, 138, 4], val: (d: any) => d.par||0 },
+    { title: "Précipitations (mm)", color: [14, 116, 144], val: (d: any) => d.precipQty||0 },
+    { title: "Prob. pluie (%)", color: [37, 99, 235], val: (d: any) => d.precipProb||0 },
+    { title: "Vent (km/h)", color: [71, 85, 105], val: (d: any) => d.windSpeed||0 },
+    { title: "Poussière (µg/m³)", color: [180, 83, 9], val: (d: any) => d.dust||0 },
+    { title: "Heures de froid (h)", color: [148, 163, 184], noData: true, val: (d: any) => 0 },
   ];
 
   miniParamsP3.forEach((p, idx) => {
@@ -677,51 +675,54 @@ export function generateWeatherPDF(weather: any): void {
     doc.setTextColor(15, 23, 42);
     doc.text(p.title, mx + 2, my + 4);
 
-    doc.setFontSize(5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(148, 163, 184);
-    doc.text(p.max, mx + 2, my + 7.5);
-    doc.text(p.min, mx + 2, my + gridRowH - 2);
+    if (p.noData) {
+      doc.setFontSize(6.5);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(148, 163, 184);
+      doc.text("donnée indisponible", mx + 2, my + 11);
+    } else {
+      let extVals = [];
+      const histData = historyData.length > 0 ? historyData : allData.slice(0, 30);
+      if (p.val && histData.length > 0) {
+         extVals = histData.map((d: any) => { const v = parseFloat(p.val(d)); return isNaN(v) ? 0 : v; });
+      } else {
+         extVals = [0, 0, 0];
+      }
+      
+      let minV = Math.min(...extVals);
+      let maxV = Math.max(...extVals);
+      if (minV === maxV) { maxV = minV + 1; minV = minV - 1; }
+      
+      // Max / Min Y labels
+      doc.setFontSize(5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(148, 163, 184);
+      doc.text(Math.round(maxV).toString(), mx + 2, my + 7.5);
+      doc.text(Math.round(minV).toString(), mx + 2, my + gridRowH - 2);
 
-    doc.text("10/07", mx + 8, my + gridRowH - 2);
-    doc.text("09/08", mx + gridColW - 8, my + gridRowH - 2);
+      // Dates
+      if (histData.length > 0) {
+        doc.text(histData[0].shortDate || histData[0].date || "", mx + 8, my + gridRowH - 2);
+        doc.text(histData[histData.length - 1].shortDate || histData[histData.length - 1].date || "", mx + gridColW - 8, my + gridRowH - 2);
+      }
 
-      // Shaded 10-year mean band
-      const ptsNormalTop = [
-        {x: mx + 8, y: my + 6},
-        {x: mx + 18, y: my + 7},
-        {x: mx + 28, y: my + 5},
-        {x: mx + 38, y: my + 6},
-        {x: mx + gridColW - 2, y: my + 5}
-      ];
-      const ptsNormalBottom = [
-        {x: mx + 8, y: my + 13},
-        {x: mx + 18, y: my + 14},
-        {x: mx + 28, y: my + 12},
-        {x: mx + 38, y: my + 13},
-        {x: mx + gridColW - 2, y: my + 12}
-      ];
+      // Shaded 10-year mean band (approx)
+      const avgY = my + 6 + (gridRowH - 8) / 2;
+      const ptsNormalTop = [ {x: mx + 8, y: avgY - 2}, {x: mx + gridColW - 2, y: avgY - 2} ];
+      const ptsNormalBottom = [ {x: mx + 8, y: avgY + 2}, {x: mx + gridColW - 2, y: avgY + 2} ];
       drawSmoothArea(doc, ptsNormalTop, ptsNormalBottom, [226, 232, 240]);
 
       // Curve
-      if (p.isFlat) {
-        drawSmoothCurve(doc, [
-          {x: mx + 8, y: my + 10},
-          {x: mx + 18, y: my + 10},
-          {x: mx + 28, y: my + 10},
-          {x: mx + 38, y: my + 10},
-          {x: mx + gridColW - 2, y: my + 10}
-        ], p.color, 0.6);
-      } else {
-        const curvePts = [
-          {x: mx + 8, y: my + 11},
-          {x: mx + 18, y: my + 8},
-          {x: mx + 28, y: my + 12},
-          {x: mx + 38, y: my + 6},
-          {x: mx + gridColW - 2, y: my + 10}
-        ];
+      const curvePts = extVals.map((v: number, i: number) => {
+         const cx = mx + 8 + (i / Math.max(1, extVals.length - 1)) * (gridColW - 10);
+         let cy = my + 6 + (1 - (v - minV) / (maxV - minV)) * (gridRowH - 8);
+         if (isNaN(cy)) cy = my + 10;
+         return {x: cx, y: cy};
+      });
+      if (curvePts.length >= 2) {
         drawSmoothCurve(doc, curvePts, p.color, 0.6);
       }
+    }
   });
 
   y += 5 * (gridRowH + 5) + 4;
@@ -739,8 +740,11 @@ export function generateWeatherPDF(weather: any): void {
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text("Précipitations : 0 mm", margin + 4, y + 10.5);
-  doc.text("Degrés-jours : 415 DJ", margin + 65, y + 10.5);
+  const hData = historyData.length > 0 ? historyData : allData.slice(0, 30);
+  const hRainTotal = hData.reduce((acc: number, d: any) => acc + (parseFloat(d.precipQty || d.rainQty) || 0), 0);
+  const hDjTotal = hData.reduce((acc: number, d: any) => acc + (parseFloat(d.dj) || 0), 0);
+  doc.text(`Précipitations : ${hRainTotal.toFixed(1)} mm`, margin + 4, y + 10.5);
+  doc.text(`Degrés-jours : ${hDjTotal.toFixed(0)} DJ`, margin + 65, y + 10.5);
 
   drawFooter(3);
 
@@ -780,7 +784,7 @@ export function generateWeatherPDF(weather: any): void {
   y += 7;
 
   // 15 Rows
-  const tableData = weather.forecast || [
+  const tableData = forecastData.length > 0 ? forecastData : [
     { date: "lun. 10/08", tempMin: "20°", tempMax: "25°", hum: "83%", wind: "13 km/h", rain: "0 mm · 0%", et0: "4.3", dj: "13" },
     { date: "mar. 11/08", tempMin: "19°", tempMax: "25°", hum: "85%", wind: "14 km/h", rain: "0 mm · 0%", et0: "4.5", dj: "12" },
     { date: "mer. 12/08", tempMin: "19°", tempMax: "25°", hum: "86%", wind: "14 km/h", rain: "0 mm · 0%", et0: "4.4", dj: "12" },
@@ -810,12 +814,12 @@ export function generateWeatherPDF(weather: any): void {
     const tMin = row.tempMin !== undefined ? (String(row.tempMin).endsWith("°") ? row.tempMin : `${row.tempMin}°`) : "19°";
     const tMax = row.tempMax !== undefined ? (String(row.tempMax).endsWith("°") ? row.tempMax : `${row.tempMax}°`) : "25°";
 
-    doc.text(String(row.date || `jour ${idx + 1}`), tableCols[0].x, y + 4.2);
+    doc.text(String(row.date || row.shortDate || `jour ${idx + 1}`), tableCols[0].x, y + 4.2);
     doc.text(String(tMin), tableCols[1].x, y + 4.2);
     doc.text(String(tMax), tableCols[2].x, y + 4.2);
-    doc.text(String(row.hum || "80%"), tableCols[3].x, y + 4.2);
-    doc.text(String(row.wind || "15 km/h"), tableCols[4].x, y + 4.2);
-    doc.text(String(row.rain || "0 mm · 0%"), tableCols[5].x, y + 4.2);
+    doc.text(String(row.humidity || row.hum || '80%').endsWith('%') ? String(row.humidity || row.hum || '80%') : `${row.humidity || row.hum}%`, tableCols[3].x, y + 4.2);
+    doc.text(String(row.windSpeed || row.wind || '15 km/h').includes('km/h') ? String(row.windSpeed || row.wind || '15 km/h') : `${row.windSpeed || row.wind} km/h`, tableCols[4].x, y + 4.2);
+    doc.text(row.precipQty !== undefined ? `${row.precipQty} mm · ${row.precipProb || 0}%` : String(row.rain || '0 mm · 0%'), tableCols[5].x, y + 4.2);
     doc.text(String(row.et0 || "4.2"), tableCols[6].x, y + 4.2);
     doc.text(String(row.dj || "12"), tableCols[7].x, y + 4.2);
 

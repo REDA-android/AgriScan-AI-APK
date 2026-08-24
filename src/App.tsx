@@ -73,6 +73,9 @@ import {
   Paperclip,
   Share2,
   FileText,
+  Settings,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { computeAgriculturalHazards, fetchDustData, AgriculturalHazard } from "./services/weatherHazardService";
 
@@ -135,6 +138,7 @@ import MapView from "./components/MapView";
 import { ChatBot } from "./components/ChatBot";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { WeatherShareModal } from "./components/WeatherShareModal";
+import { SettingsModal } from "./components/SettingsModal";
 import VoiceDictationButton from "./components/VoiceDictationButton";
 import {
   LiquidGlassSVG,
@@ -157,6 +161,7 @@ import {
   saveOfflineObservation,
   getOfflineObservations,
   deleteOfflineObservation,
+  clearOfflineObservations,
   updateOfflineStatus,
   OfflineObservation,
 } from "./lib/db";
@@ -1848,6 +1853,9 @@ function WeatherCard({
   const [isSearching, setIsSearching] = useState(false);
   const [viewMode, setViewMode] = useState<"forecast" | "history">("forecast");
   const [subTab, setSubTab] = useState<"meteo" | "windy">("meteo");
+
+  
+
   const [windyOverlay, setWindyOverlay] = useState<"temp" | "rain" | "wind" | "clouds" | "gust">("temp");
 
   useEffect(() => {
@@ -2328,7 +2336,7 @@ function WeatherCard({
         </div>
 
         <div className="h-40 w-full mb-6 min-w-0 flex items-center justify-center">
-          <ResponsiveContainer
+          <ResponsiveContainer aspect={2.5}
             width="100%"
             height="100%"
             minWidth={0}
@@ -2473,6 +2481,24 @@ function WeatherCard({
   );
 }
 
+
+async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3, initialDelay = 1000): Promise<T> {
+  let attempt = 0;
+  let delay = initialDelay;
+  while (attempt < maxRetries) {
+    try {
+      return await operation();
+    } catch (error) {
+      attempt++;
+      if (attempt >= maxRetries) throw error;
+      console.warn(`Operation failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`, error);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
+  throw new Error("Unreachable");
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -2547,7 +2573,12 @@ export default function App() {
   const [isObservationsLoading, setIsObservationsLoading] = useState(true);
   const [userNotes, setUserNotes] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isNetworkOnline, setIsNetworkOnline] = useState(navigator.onLine);
+  const [forceOffline, setForceOffline] = useState<boolean>(() => {
+    return localStorage.getItem("agro_force_offline") === "true";
+  });
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const isOnline = isNetworkOnline && !forceOffline;
   const [offlineObservations, setOfflineObservations] = useState<
     OfflineObservation[]
   >([]);
@@ -3195,8 +3226,8 @@ export default function App() {
       });
     }
 
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => setIsNetworkOnline(true);
+    const handleOffline = () => setIsNetworkOnline(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
@@ -3472,11 +3503,16 @@ export default function App() {
               0.45
             : 0;
 
-          // Approx DPV max daily
-          const tMax = daily.temperature_2m_max[index] ?? 20;
-          const es = 0.6108 * Math.exp((17.27 * tMax) / (tMax + 237.3));
-          const ea = es * 0.6; // assuming 60% rh
-          const dpvApprox = es - ea;
+          const dayStartIdx = index * 24;
+          const hourly = weatherData.hourly;
+          let dpvMax = 0;
+          let rhMean = 60;
+          if (hourly && hourly.vapour_pressure_deficit && hourly.relative_humidity_2m) {
+             const rhSlice = hourly.relative_humidity_2m.slice(dayStartIdx, dayStartIdx + 24).filter(v => v !== null);
+             const dpvSlice = hourly.vapour_pressure_deficit.slice(dayStartIdx, dayStartIdx + 24).filter(v => v !== null);
+             rhMean = rhSlice.length > 0 ? rhSlice.reduce((a,b)=>a+b,0)/rhSlice.length : 60;
+             dpvMax = dpvSlice.length > 0 ? Math.max(...dpvSlice) : 0;
+          }
           const dustVal = dustMap[timeStr] ? Number(dustMap[timeStr].toFixed(1)) : 0;
 
           return {
@@ -3484,9 +3520,9 @@ export default function App() {
             tempMax: daily.temperature_2m_max[index],
             tempMin: daily.temperature_2m_min[index],
             tempAvg: daily.temperature_2m_mean[index],
-            humidity: 60,
+            humidity: Number(rhMean.toFixed(0)),
             et0: daily.et0_fao_evapotranspiration[index] || 0,
-            dpv: Number(dpvApprox.toFixed(2)),
+            dpv: Number(dpvMax.toFixed(2)),
             par: Number(parApprox.toFixed(0)),
             precipQty: daily.precipitation_sum[index] || 0,
             precipProb: daily.precipitation_probability_max?.[index] || 0,
@@ -4136,7 +4172,15 @@ export default function App() {
   }, []);
 
   const syncSingleOfflineObservation = async (item: OfflineObservation) => {
-    if (!isOnline || !user) return false;
+    if (!navigator.onLine || !user) {
+      notifyUser(
+        language === "fr"
+          ? "Connexion Internet requise pour synchroniser."
+          : "Internet connection required to sync.",
+        "error"
+      );
+      return false;
+    }
     try {
       await updateOfflineStatus(item.id, "syncing");
       setOfflineObservations((prev) =>
@@ -4146,7 +4190,7 @@ export default function App() {
       // Upload to Storage first
       const storagePath = `observations/${user.uid}/${Date.now()}_offline_${item.id}.jpg`;
       const blob = await dataUrlToBlob(item.fileData);
-      const storageUrl = await uploadImage(blob, storagePath);
+      const storageUrl = await withRetry(() => uploadImage(blob, storagePath));
 
       const hasOfflineAnalysis = !!(item.metadata as any).offlineAnalysis;
       const offlineData = hasOfflineAnalysis ? (item.metadata as any).offlineAnalysis : {};
@@ -4187,10 +4231,10 @@ export default function App() {
         defects: (item.metadata as any).defects || null,
       };
 
-      const docRef = await addDoc(
+      const docRef = await withRetry(() => addDoc(
         collection(db, "observations"),
-        observationData,
-      );
+        observationData
+      ));
 
       if (!hasOfflineAnalysis) {
         // Trigger background analysis
@@ -4224,11 +4268,36 @@ export default function App() {
     }
   };
 
-  const syncOfflineData = async () => {
-    if (!isOnline || !user || isSyncing) return;
+  const syncOfflineData = async (forceManual = false) => {
+    if (forceOffline && !forceManual) return;
+    if (!navigator.onLine || !user || isSyncing) {
+      if (forceManual && !navigator.onLine) {
+        notifyUser(
+          language === "fr"
+            ? "Impossible de synchroniser : aucune connexion Internet détectée."
+            : language === "ar"
+            ? "تعذر المزامنة: لم يتم اكتشاف اتصال بالإنترنت."
+            : "Cannot sync: no Internet connection detected.",
+          "error"
+        );
+      }
+      return;
+    }
 
     const queue = await getOfflineObservations();
-    if (queue.length === 0) return;
+    if (queue.length === 0) {
+      if (forceManual) {
+        notifyUser(
+          language === "fr"
+            ? "Toutes les observations sont déjà synchronisées."
+            : language === "ar"
+            ? "جميع الملاحظات متزامنة بالفعل."
+            : "All observations are already synced.",
+          "info"
+        );
+      }
+      return;
+    }
 
     // Check for network stability to avoid mixed mode errors
     const connection = (navigator as any).connection;
@@ -4268,11 +4337,70 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    if (isOnline && user) {
-      syncOfflineData();
+  const handleToggleForceOffline = (forced: boolean) => {
+    setForceOffline(forced);
+    localStorage.setItem("agro_force_offline", String(forced));
+    triggerHaptic("light");
+    if (forced) {
+      notifyUser(
+        language === "fr"
+          ? "Mode hors-ligne forcé activé. Les synchronisations seront manuelles."
+          : language === "ar"
+          ? "تم تفعيل وضع عدم الاتصال المفروض. ستكون المزامنة يدوية."
+          : "Forced offline mode activated. Sync will be manual.",
+        "info"
+      );
+    } else {
+      notifyUser(
+        language === "fr"
+          ? "Mode hors-ligne désactivé. Synchronisation automatique rétablie."
+          : language === "ar"
+          ? "تم إلغاء تفعيل وضع عدم الاتصال. المزامنة التلقائية مفعلة."
+          : "Forced offline mode disabled. Automatic sync enabled.",
+        "success"
+      );
     }
-  }, [isOnline, user]);
+  };
+
+  const handleDeleteOfflineObservation = async (id: string) => {
+    try {
+      await deleteOfflineObservation(id);
+      setOfflineObservations((prev) => prev.filter((o) => o.id !== id));
+      notifyUser(
+        language === "fr"
+          ? "Observation locale supprimée."
+          : language === "ar"
+          ? "تم حذف الملاحظة المحلية."
+          : "Local observation deleted.",
+        "info"
+      );
+    } catch (e) {
+      console.error("Error deleting offline observation:", e);
+    }
+  };
+
+  const handleClearOfflineQueue = async () => {
+    try {
+      await clearOfflineObservations();
+      setOfflineObservations([]);
+      notifyUser(
+        language === "fr"
+          ? "File d'attente hors-ligne vidée."
+          : language === "ar"
+          ? "تم إفراغ قائمة الانتظار المحلية."
+          : "Offline queue cleared.",
+        "info"
+      );
+    } catch (e) {
+      console.error("Error clearing offline queue:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (!forceOffline && isNetworkOnline && user) {
+      syncOfflineData(false);
+    }
+  }, [forceOffline, isNetworkOnline, user]);
 
   useEffect(() => {
     if (!user || !isAuthReady || (userData && userData.accessStatus === "pending" && !isAdmin)) return;
@@ -5586,27 +5714,63 @@ export default function App() {
             <p className="text-[9px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-[0.12em]">
               AGRONOMIE
             </p>
-            {firebaseStatus === "connected" && (
-              <span
-                className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0"
-                title="Firebase Connecté"
-              ></span>
-            )}
-            {firebaseStatus === "offline" && (
-              <span
-                className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shrink-0"
-                title="Mode Hors-ligne (Actif)"
-              ></span>
-            )}
-            {firebaseStatus === "error" && (
-              <span
-                className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0"
-                title="Erreur Firebase"
-              ></span>
+            {forceOffline ? (
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(true)}
+                className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 cursor-pointer hover:bg-amber-500/30 transition-colors"
+                title="Mode Hors-ligne Forcé (Actif) — Cliquez pour les paramètres"
+              >
+                <WifiOff size={10} />
+                <span>Hors-Ligne Forcé</span>
+              </button>
+            ) : (
+              <>
+                {firebaseStatus === "connected" && (
+                  <span
+                    className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0"
+                    title="Firebase Connecté"
+                  ></span>
+                )}
+                {firebaseStatus === "offline" && (
+                  <span
+                    className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shrink-0"
+                    title="Mode Hors-ligne (Actif)"
+                  ></span>
+                )}
+                {firebaseStatus === "error" && (
+                  <span
+                    className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0"
+                    title="Erreur Firebase"
+                  ></span>
+                )}
+              </>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowSettingsModal(true)}
+            className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group cursor-pointer shrink-0 ${
+              forceOffline
+                ? "bg-amber-500/20 border-amber-500/50 text-amber-400 ring-2 ring-amber-500/30"
+                : "bg-slate-100 dark:bg-[#0d120f] border-slate-200/90 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/10"
+            }`}
+            title={
+              forceOffline
+                ? "Paramètres (Mode Hors-ligne forcé actif)"
+                : language === "fr"
+                ? "Paramètres de l'application"
+                : "Application Settings"
+            }
+            aria-label="Paramètres de l'application"
+          >
+            <Settings size={18} />
+            {forceOffline && (
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full ring-2 ring-white dark:ring-[#0d120f]" />
+            )}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -5742,24 +5906,45 @@ export default function App() {
                   className={`text-xs font-bold uppercase tracking-wider ${isSyncing ? "text-emerald-400" : "text-amber-400"}`}
                 >
                   {isSyncing
-                    ? "Synchronisation en cours..."
-                    : `${offlineObservations.length} observations en attente`}
+                    ? (language === "fr" ? "Synchronisation en cours..." : "Syncing in progress...")
+                    : `${offlineObservations.length} ${language === "fr" ? "observation(s) en attente" : "pending observation(s)"}`}
                 </p>
-                {!isOnline && (
-                  <p className="text-[10px] text-amber-400 font-medium">
-                    En attente de connexion internet
+                {forceOffline ? (
+                  <p className="text-[10px] text-amber-400 font-medium flex items-center gap-1">
+                    <WifiOff size={10} />
+                    {language === "fr"
+                      ? "Mode hors-ligne forcé (Synchro manuelle)"
+                      : "Forced offline mode (Manual sync)"}
                   </p>
-                )}
+                ) : !isNetworkOnline ? (
+                  <p className="text-[10px] text-amber-400 font-medium">
+                    {language === "fr"
+                      ? "En attente de connexion internet"
+                      : "Waiting for internet connection"}
+                  </p>
+                ) : null}
               </div>
             </div>
-            {isOnline && !isSyncing && (
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => syncOfflineData()}
-                className="px-3 py-1.5 bg-amber-600 text-white text-[10px] font-bold rounded-xl uppercase tracking-widest hover:bg-amber-700 transition-colors shadow-none"
+                type="button"
+                onClick={() => setShowSettingsModal(true)}
+                className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-colors"
+                title="Gérer les paramètres hors-ligne"
               >
-                Tout Sync
+                <Settings size={15} />
               </button>
-            )}
+              {isNetworkOnline && !isSyncing && (
+                <button
+                  type="button"
+                  onClick={() => syncOfflineData(true)}
+                  className="px-3 py-1.5 bg-amber-600 text-white text-[10px] font-bold rounded-xl uppercase tracking-widest hover:bg-amber-700 transition-colors shadow-none flex items-center gap-1.5"
+                >
+                  <RefreshCw size={12} />
+                  <span>{language === "fr" ? "Tout Sync" : "Sync All"}</span>
+                </button>
+              )}
+            </div>
           </div>
           
           <div className="max-h-48 overflow-y-auto px-4 py-2 space-y-2 bg-[#0d120f]/50">
@@ -5858,7 +6043,8 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] scroll-smooth">
+      <main className="flex-1 overflow-y-auto p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] scroll-smooth flex flex-col min-h-0">
+        <div className="rounded-3xl overflow-hidden flex-1 flex flex-col min-h-0 relative">
         {activeTab === "scan" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -5869,9 +6055,23 @@ export default function App() {
               <div className="space-y-4">
                 {!isOnline && (
                   <div className="flex justify-between items-center bg-[#161c18] border border-white/5 p-3 rounded-2xl">
-                    <span className="text-xs font-bold text-slate-300">Mode d'exécution :</span>
-                    <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/20">
-                      En attente réseau
+                    <div className="flex items-center gap-2">
+                      <WifiOff size={14} className="text-amber-400" />
+                      <span className="text-xs font-bold text-slate-300">Mode d'exécution :</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/20">
+                        {forceOffline ? "Hors-ligne forcé" : "En attente réseau"}
+                      </div>
+                      {forceOffline && (
+                        <button
+                          type="button"
+                          onClick={() => setShowSettingsModal(true)}
+                          className="text-[10px] text-amber-400 underline font-semibold hover:text-amber-300 transition-colors"
+                        >
+                          Modifier
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -5998,7 +6198,7 @@ export default function App() {
                         évolution de la récolte (Kg/pot)
                       </h4>
                       <div className="h-48 w-full min-w-0 flex items-center justify-center">
-                        <ResponsiveContainer
+                        <ResponsiveContainer aspect={2.5}
                           width="100%"
                           height="100%"
                           minWidth={0}
@@ -6492,7 +6692,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="h-full flex flex-col"
+            className="flex-1 flex flex-col w-full h-full min-h-0"
           >
             <MapView
               markers={observations
@@ -6561,8 +6761,22 @@ export default function App() {
                   <div className="flex gap-2">
                     {isSelectionMode ? (
                       <>
+                        
+                        {selectedIds.length === 1 && (
+                          <button
+                            onClick={() => {
+                              setEditingId(selectedIds[0]);
+                              setIsSelectionMode(false);
+                              setSelectedIds([]);
+                            }}
+                            className="p-2 bg-blue-500/10 text-blue-400 rounded-lg flex items-center gap-1 text-xs font-bold hover:bg-blue-500/20"
+                          >
+                            <Edit2 size={16} /> Éditer
+                          </button>
+                        )}
                         <button
                           onClick={handleBulkDelete}
+
                           disabled={selectedIds.length === 0}
                           className={`p-2 rounded-lg disabled:opacity-50 flex items-center gap-1 text-xs font-bold transition-all bg-red-500/10 text-red-400 hover:bg-red-500/20`}
                         >
@@ -6957,6 +7171,7 @@ export default function App() {
             />
           </motion.div>
         )}
+      </div>
       </main>
 
       {/* Fullscreen Image Viewer */}
@@ -7144,7 +7359,25 @@ export default function App() {
         ]}
       />
       
-
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        forceOffline={forceOffline}
+        onToggleForceOffline={handleToggleForceOffline}
+        isNetworkOnline={isNetworkOnline}
+        offlineObservations={offlineObservations}
+        isSyncing={isSyncing}
+        onSyncAll={() => syncOfflineData(true)}
+        onSyncSingle={syncSingleOfflineObservation}
+        onDeleteSingle={handleDeleteOfflineObservation}
+        onClearQueue={handleClearOfflineQueue}
+        themeMode={themeMode}
+        onChangeTheme={setThemeMode}
+        language={language}
+        onChangeLanguage={setLanguage}
+        firebaseStatus={firebaseStatus}
+      />
 
       {/* Notifications UI */}
       {appNotifications.length > 0 && (

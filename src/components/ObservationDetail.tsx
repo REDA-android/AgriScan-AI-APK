@@ -297,7 +297,7 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
                 images: observation.images,
               });
             }}
-            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all duration-300 flex items-center gap-1 shadow-sm hover:scale-105 hover:shadow-[0_0_15px_rgba(16,185,129,0.5)]"
             title="Télécharger le rapport PDF"
           >
             <FileText className="w-4 h-4" />
