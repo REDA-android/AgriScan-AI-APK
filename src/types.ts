@@ -55,6 +55,43 @@ export interface ObservationComment {
   createdAt: string;
 }
 
+export interface PlantAnalysis {
+  family: string;
+  species: string;
+  variety: string;
+  culture?: string;
+  domain?: string;
+  status?: "pending" | "completed" | "error";
+  plantingDate?: string | null;
+  breeder?: string | null;
+  pruningDate?: string | null;
+  harvestQuantity?: string | null;
+  density?: string | null;
+  fruitFirmness?: string | null;
+  defects?: string | null;
+  phenologicalStage?: string;
+  bbchDominant?: string;
+  bbchSecondary?: string[];
+  organCounts?: {
+    flowers: number;
+    fruits: number;
+    details: string;
+  };
+  stageIntensity?: string;
+  stageQuality?: string;
+  characterizationTraits?: string[];
+  phenotypicTraits: {
+    color: string;
+    shape: string;
+    size: string;
+    healthStatus: string;
+    diseasesOrDeficiencies: string[];
+  };
+  description: string;
+  imageUrls?: string[];
+  userNotes?: string;
+}
+
 export interface Observation {
   id: string;
   userId: string;

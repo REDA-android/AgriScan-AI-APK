@@ -1,10 +1,9 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Search, MapPin, Compass, Navigation, Maximize2, Layers, CheckCircle2, AlertTriangle, XCircle, Sparkles, Filter, X } from 'lucide-react';
+import { Search, MapPin, Compass, Navigation, Maximize2, Layers, CheckCircle2, AlertTriangle, XCircle, Sparkles, Filter, X, Locate, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { useState, useMemo, FormEvent, useEffect, useCallback, useRef } from 'react';
-import { MapContainer, Marker, Popup, useMap, useMapEvents, Circle } from 'react-leaflet';
+import { MapContainer, Marker, Popup, useMap, useMapEvents, Circle, TileLayer } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
-import OfflineTileLayer from './OfflineTileLayer';
 
 // High Resolution Marker Icons
 const createDefaultIcon = () => L.divIcon({
@@ -57,10 +56,23 @@ interface MapViewProps {
   onMapClick?: (lat: number, lng: number) => void;
 }
 
-// Controller component for smooth animated map panning
+// Controller component for smooth animated map panning and proper resize measurement
 function MapController({ center, zoom, bounds }: { center?: [number, number], zoom?: number, bounds?: L.LatLngBoundsExpression }) {
   const map = useMap();
   
+  useEffect(() => {
+    // Invalidate map size on mount and after short delays to guarantee full rendering
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 100);
+    const t2 = setTimeout(() => map.invalidateSize(), 350);
+    const t3 = setTimeout(() => map.invalidateSize(), 800);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [map]);
+
   useEffect(() => {
     if (bounds) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true, duration: 1 });
@@ -73,6 +85,32 @@ function MapController({ center, zoom, bounds }: { center?: [number, number], zo
   }, [center, zoom, bounds, map]);
 
   return null;
+}
+
+// Controller for custom floating zoom buttons
+function MapZoomButtons() {
+  const map = useMap();
+  return (
+    <div className="flex flex-col gap-1 bg-[#121814]/95 backdrop-blur-xl p-1 rounded-2xl border border-white/10 shadow-2xl light-mode-map-btn">
+      <button
+        type="button"
+        onClick={() => map.zoomIn()}
+        className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 hover:text-emerald-400 hover:bg-white/10 active:scale-95 transition-all text-sm font-black cursor-pointer map-control-text"
+        title="Zoom avant"
+      >
+        <ZoomIn size={16} />
+      </button>
+      <div className="h-px bg-white/10 w-full" />
+      <button
+        type="button"
+        onClick={() => map.zoomOut()}
+        className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-200 hover:text-emerald-400 hover:bg-white/10 active:scale-95 transition-all text-sm font-black cursor-pointer map-control-text"
+        title="Zoom arrière"
+      >
+        <ZoomOut size={16} />
+      </button>
+    </div>
+  );
 }
 
 // Handler for map clicks
@@ -339,106 +377,151 @@ export default function MapView({
 
   return (
     <div className="h-full w-full relative flex flex-col bg-[#0b0f0c]">
-      {/* Top Floating Glass Control Bar */}
+      {/* Top Floating Glass Search & Control Bar */}
       <div 
-        className="absolute top-3 right-3 z-[1000] flex items-center gap-2 pointer-events-auto"
+        className="absolute top-3 left-3 right-3 z-[1000] flex items-center justify-between gap-2 pointer-events-auto"
         onTouchStart={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Filter Modal Trigger Button */}
-        <button
-          type="button"
-          onClick={() => setShowFilterModal(true)}
-          className={`p-2.5 bg-[#121814]/95 backdrop-blur-xl hover:bg-emerald-500/20 active:scale-95 rounded-2xl border shadow-2xl flex items-center gap-1.5 text-xs font-bold transition-all shrink-0 light-mode-map-btn ${
-            activeFiltersCount > 0 
-              ? 'text-emerald-300 border-emerald-500/50 bg-emerald-500/20 ring-2 ring-emerald-500/30 light-mode-map-btn-active' 
-              : 'text-slate-200 border-white/10 hover:text-emerald-400'
-          }`}
-          title="Filtres de la carte"
-        >
-          <Filter size={18} className={activeFiltersCount > 0 ? "text-emerald-400 fill-emerald-400/20 map-control-icon" : "text-emerald-400 map-control-icon"} />
-          {activeFiltersCount > 0 && (
-            <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black flex items-center justify-center">
-              {activeFiltersCount}
-            </span>
+        {/* Quick Search Form */}
+        <form onSubmit={handleSearch} className="flex-1 max-w-xs relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Rechercher une zone, culture..."
+            className="w-full pl-9 pr-8 py-2.5 bg-[#121814]/95 backdrop-blur-xl border border-white/10 rounded-2xl text-xs font-semibold text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 shadow-2xl transition-all light-mode-map-btn"
+          />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 map-control-icon pointer-events-none" />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded-full"
+            >
+              <X size={13} />
+            </button>
           )}
-        </button>
+        </form>
 
-        {/* Layer Picker Button */}
-        <button
-          type="button"
-          onClick={() => setShowLayersModal(true)}
-          className="p-2.5 bg-[#121814]/95 backdrop-blur-xl hover:bg-emerald-500/20 active:scale-95 text-emerald-400 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-1.5 text-xs font-bold transition-all shrink-0 light-mode-map-btn"
-          title="Fonds de carte"
-        >
-          <Layers size={18} className="map-control-icon" />
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Filter Modal Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setShowFilterModal(true)}
+            className={`p-2.5 bg-[#121814]/95 backdrop-blur-xl hover:bg-emerald-500/20 active:scale-95 rounded-2xl border shadow-2xl flex items-center gap-1.5 text-xs font-bold transition-all shrink-0 light-mode-map-btn ${
+              activeFiltersCount > 0 
+                ? 'text-emerald-300 border-emerald-500/50 bg-emerald-500/20 ring-2 ring-emerald-500/30 light-mode-map-btn-active' 
+                : 'text-slate-200 border-white/10 hover:text-emerald-400'
+            }`}
+            title="Filtres de la carte"
+          >
+            <Filter size={18} className={activeFiltersCount > 0 ? "text-emerald-400 fill-emerald-400/20 map-control-icon" : "text-emerald-400 map-control-icon"} />
+            {activeFiltersCount > 0 && (
+              <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 text-[10px] font-black flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
 
-        {/* Marker Counter Pill */}
-        <div className="px-3 py-2.5 bg-[#121814]/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl flex items-center gap-1.5 text-xs font-semibold text-emerald-400 shrink-0 light-mode-map-btn">
-          <MapPin size={14} className="text-emerald-400 map-control-icon" />
-          <span className="map-control-text">{filteredMarkers.length}</span>
+          {/* Layer Picker Button */}
+          <button
+            type="button"
+            onClick={() => setShowLayersModal(true)}
+            className="p-2.5 bg-[#121814]/95 backdrop-blur-xl hover:bg-emerald-500/20 active:scale-95 text-emerald-400 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-1.5 text-xs font-bold transition-all shrink-0 light-mode-map-btn"
+            title="Fonds de carte"
+          >
+            <Layers size={18} className="map-control-icon" />
+          </button>
+
+          {/* Marker Counter Pill */}
+          <div className="px-3 py-2.5 bg-[#121814]/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl flex items-center gap-1.5 text-xs font-semibold text-emerald-400 shrink-0 light-mode-map-btn">
+            <MapPin size={14} className="text-emerald-400 map-control-icon" />
+            <span className="map-control-text">{filteredMarkers.length}</span>
+          </div>
         </div>
       </div>
 
       {/* Main Ultra HD Map Container */}
-      <div className="flex-1 w-full h-full relative overflow-hidden">
+      <div className="flex-1 w-full h-full relative overflow-hidden min-h-[300px]">
         <MapContainer 
           center={mapCenter} 
           zoom={mapZoom} 
-          style={{ height: '100%', width: '100%' }} 
+          style={{ height: '100%', width: '100%', minHeight: '100%' }} 
           zoomControl={false}
           attributionControl={false}
           preferCanvas={true} // High efficiency HTML5 Canvas rendering for max FPS speed
-          keepBuffer={2}       // Optimized tile buffer to load tiles fast without network congestion
-          updateWhenIdle={true} // Wait for pan pauses before requesting extra tiles
-          updateWhenZooming={false}
           maxZoom={22}
         >
           <MapController center={mapCenter} zoom={mapZoom} bounds={fitBoundsTrigger} />
           <MapClickHandler onMapClick={onMapClick} />
 
-          {/* Optimized Fast Tile Layer Providers */}
+          {/* High Definition Tile Layer Providers */}
           {mapType === 'satellite-4k' && (
-            <OfflineTileLayer
+            <TileLayer
               attribution='&copy; Google Maps Satellite'
-              url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-              subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-              tileSize={256}
-              zoomOffset={0}
-              maxNativeZoom={20}
+              url="https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+              subdomains={['0', '1', '2', '3']}
               maxZoom={22}
             />
           )}
 
           {mapType === 'plan-hd' && (
-            <OfflineTileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a> Voyager HD'
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
               url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
               subdomains={['a', 'b', 'c', 'd']}
-              maxNativeZoom={19}
               maxZoom={22}
             />
           )}
 
           {mapType === 'dark-hd' && (
-            <OfflineTileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a> Dark Matter HD'
+            <TileLayer
+              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               subdomains={['a', 'b', 'c', 'd']}
-              maxNativeZoom={19}
               maxZoom={22}
             />
           )}
 
           {mapType === 'esri-hd' && (
-            <OfflineTileLayer
-              attribution='&copy; Esri World Imagery HD'
+            <TileLayer
+              attribution='&copy; Esri World Imagery'
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              maxNativeZoom={19}
               maxZoom={22}
             />
           )}
+
+          {/* Right Floating Quick Action Buttons */}
+          <div className="leaflet-top leaflet-right !top-20 !right-3 flex flex-col gap-2 pointer-events-auto z-[1000]">
+            {/* Locate User Button */}
+            <button
+              type="button"
+              onClick={handleLocateUser}
+              disabled={isLocating}
+              className={`p-2.5 rounded-2xl border shadow-2xl flex items-center justify-center transition-all cursor-pointer light-mode-map-btn ${
+                userLocation 
+                  ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' 
+                  : 'bg-[#121814]/95 text-slate-200 hover:text-emerald-400 border-white/10 hover:bg-emerald-500/20'
+              }`}
+              title="Ma position GPS"
+            >
+              <Locate size={18} className={isLocating ? "animate-spin text-blue-400" : (userLocation ? "text-blue-400" : "map-control-icon")} />
+            </button>
+
+            {/* Recalibrate / Fit Bounds Button */}
+            <button
+              type="button"
+              onClick={handleRecalibrate}
+              className="p-2.5 bg-[#121814]/95 backdrop-blur-xl hover:bg-emerald-500/20 active:scale-95 text-slate-200 hover:text-emerald-400 rounded-2xl border border-white/10 shadow-2xl flex items-center justify-center transition-all cursor-pointer light-mode-map-btn"
+              title="Recadrer la carte"
+            >
+              <RotateCcw size={18} className="map-control-icon" />
+            </button>
+
+            {/* Zoom Controls */}
+            <MapZoomButtons />
+          </div>
 
           {/* User Location GPS Marker */}
           {userLocation && (

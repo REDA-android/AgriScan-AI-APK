@@ -73,9 +73,6 @@ import {
   Paperclip,
   Share2,
   FileText,
-  Settings,
-  Wifi,
-  WifiOff,
 } from "lucide-react";
 import { computeAgriculturalHazards, fetchDustData, AgriculturalHazard } from "./services/weatherHazardService";
 
@@ -138,7 +135,6 @@ import MapView from "./components/MapView";
 import { ChatBot } from "./components/ChatBot";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { WeatherShareModal } from "./components/WeatherShareModal";
-import { SettingsModal } from "./components/SettingsModal";
 import VoiceDictationButton from "./components/VoiceDictationButton";
 import {
   LiquidGlassSVG,
@@ -161,10 +157,20 @@ import {
   saveOfflineObservation,
   getOfflineObservations,
   deleteOfflineObservation,
-  clearOfflineObservations,
   updateOfflineStatus,
+  getCachedObservations,
+  cacheObservations,
+  deleteCachedObservation,
+  saveCachedObservation,
   OfflineObservation,
 } from "./lib/db";
+import { generatePreliminaryDiagnostic } from "./services/offlineDiagnosticService";
+import {
+  initializeAutoSync,
+  syncAllOfflineObservations,
+} from "./services/offlineSyncService";
+import OfflineSyncBanner from "./components/OfflineSyncBanner";
+import OfflineObservationsDrawer from "./components/OfflineObservationsDrawer";
 
 // Types
 import {
@@ -2573,12 +2579,7 @@ export default function App() {
   const [isObservationsLoading, setIsObservationsLoading] = useState(true);
   const [userNotes, setUserNotes] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isNetworkOnline, setIsNetworkOnline] = useState(navigator.onLine);
-  const [forceOffline, setForceOffline] = useState<boolean>(() => {
-    return localStorage.getItem("agro_force_offline") === "true";
-  });
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const isOnline = isNetworkOnline && !forceOffline;
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineObservations, setOfflineObservations] = useState<
     OfflineObservation[]
   >([]);
@@ -2675,6 +2676,8 @@ export default function App() {
   const [selectedObservation, setSelectedObservation] = useState<any | null>(
     null,
   );
+  const [isOfflineDrawerOpen, setIsOfflineDrawerOpen] = useState(false);
+  const [bulkEditState, setBulkEditState] = useState({ isOpen: false });
 
   // Auth States
   const [authMode, setAuthMode] = useState<
@@ -3226,8 +3229,8 @@ export default function App() {
       });
     }
 
-    const handleOnline = () => setIsNetworkOnline(true);
-    const handleOffline = () => setIsNetworkOnline(false);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
@@ -4158,249 +4161,65 @@ export default function App() {
     }
   }, [observations, editingId]);
 
-  // Offline Sync Logic
+  // Offline Sync & IndexedDB Cache Logic
   useEffect(() => {
-    const loadOffline = async () => {
-      const obs = await getOfflineObservations();
-      setOfflineObservations(obs);
-    };
-    loadOffline();
+    const loadOfflineAndCache = async () => {
+      const offline = await getOfflineObservations();
+      setOfflineObservations(offline);
 
-    const handleStorageChange = () => loadOffline();
+      // Si l'utilisateur est hors-ligne ou que les données Firestore ne sont pas encore prêtes
+      if (!navigator.onLine || observations.length === 0) {
+        const cached = await getCachedObservations();
+        if (cached.length > 0) {
+          setObservations((prev) => (prev.length === 0 ? cached : prev));
+          setIsObservationsLoading(false);
+        }
+      }
+    };
+    loadOfflineAndCache();
+
+    const handleStorageChange = () => loadOfflineAndCache();
     window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+    window.addEventListener("agroscan:offline-storage-changed", handleStorageChange);
+
+    // Initialisation du listener de synchronisation automatique au retour du réseau
+    const cleanupAutoSync = initializeAutoSync(() => user, notifyUser);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("agroscan:offline-storage-changed", handleStorageChange);
+      if (cleanupAutoSync) cleanupAutoSync();
+    };
+  }, [user]);
 
   const syncSingleOfflineObservation = async (item: OfflineObservation) => {
-    if (!navigator.onLine || !user) {
-      notifyUser(
-        language === "fr"
-          ? "Connexion Internet requise pour synchroniser."
-          : "Internet connection required to sync.",
-        "error"
-      );
-      return false;
-    }
+    if (!isOnline || !user) return false;
     try {
       await updateOfflineStatus(item.id, "syncing");
       setOfflineObservations((prev) =>
         prev.map((o) => (o.id === item.id ? { ...o, status: "syncing" } : o)),
       );
 
-      // Upload to Storage first
-      const storagePath = `observations/${user.uid}/${Date.now()}_offline_${item.id}.jpg`;
-      const blob = await dataUrlToBlob(item.fileData);
-      const storageUrl = await withRetry(() => uploadImage(blob, storagePath));
-
-      const hasOfflineAnalysis = !!(item.metadata as any).offlineAnalysis;
-      const offlineData = hasOfflineAnalysis ? (item.metadata as any).offlineAnalysis : {};
-
-      const observationData = {
-        userId: user.uid,
-        location: {
-          lat: (item.metadata as any).lat || 0,
-          lng: (item.metadata as any).lng || 0,
-        },
-        createdAt: serverTimestamp(),
-        capturedAt: item.capturedAt || new Date().toISOString(),
-        imageUrl: storageUrl,
-        imageUrls: [storageUrl],
-        culture: offlineData.culture || (item.metadata as any).culture || "En attente d'analyse",
-        variety: offlineData.variety || (item.metadata as any).variety || "En attente d'analyse",
-        species: offlineData.species || (item.metadata as any).species || "Inconnu",
-        family: offlineData.family || (item.metadata as any).family || "Inconnu",
-        domain: offlineData.domain || (item.metadata as any).domain || "Général",
-        bbchDominant: offlineData.bbchDominant || "",
-        bbchSecondary: offlineData.bbchSecondary || [],
-        organCounts: offlineData.organCounts || { flowers: 0, fruits: 0, details: "" },
-        phenotypicTraits: offlineData.phenotypicTraits || {
-          color: "?",
-          shape: "?",
-          size: "?",
-          healthStatus: "?",
-          diseasesOrDeficiencies: [],
-        },
-        userNotes: (item.metadata as any).userNotes || "Capture hors-ligne",
-        status: hasOfflineAnalysis ? "completed" : "pending",
-        plantingDate: (item.metadata as any).plantingDate || null,
-        breeder: (item.metadata as any).breeder || null,
-        pruningDate: (item.metadata as any).pruningDate || null,
-        harvestQuantity: (item.metadata as any).harvestQuantity || null,
-        density: (item.metadata as any).density || null,
-        fruitFirmness: (item.metadata as any).fruitFirmness || null,
-        defects: (item.metadata as any).defects || null,
-      };
-
-      const docRef = await withRetry(() => addDoc(
-        collection(db, "observations"),
-        observationData
-      ));
-
-      if (!hasOfflineAnalysis) {
-        // Trigger background analysis
-        const images = [
-          {
-            base64Image: item.fileData.split(",")[1],
-            mimeType: item.fileType || "image/jpeg",
-            dataUrl: item.fileData,
-          },
-        ];
-        runBackgroundAnalysis(docRef.id, images, item.metadata);
-      }
-
-      // Remove from IndexedDB
-      await deleteOfflineObservation(item.id);
-      setOfflineObservations((prev) => prev.filter((o) => o.id !== item.id));
-      return true;
+      const res = await syncAllOfflineObservations(user, notifyUser);
+      return res.success > 0;
     } catch (e) {
       console.error("Sync failed for item", item.id, e);
-      notifyUser(
-        `Erreur de synchronisation pour l'élément hors-ligne`,
-        "error",
-      );
+      notifyUser(`Erreur de synchronisation : ${e}`, "error");
       await updateOfflineStatus(item.id, "error", String(e));
-      setOfflineObservations((prev) =>
-        prev.map((o) =>
-          o.id === item.id ? { ...o, status: "error", error: String(e) } : o,
-        ),
-      );
       return false;
     }
   };
 
-  const syncOfflineData = async (forceManual = false) => {
-    if (forceOffline && !forceManual) return;
-    if (!navigator.onLine || !user || isSyncing) {
-      if (forceManual && !navigator.onLine) {
-        notifyUser(
-          language === "fr"
-            ? "Impossible de synchroniser : aucune connexion Internet détectée."
-            : language === "ar"
-            ? "تعذر المزامنة: لم يتم اكتشاف اتصال بالإنترنت."
-            : "Cannot sync: no Internet connection detected.",
-          "error"
-        );
-      }
-      return;
-    }
-
-    const queue = await getOfflineObservations();
-    if (queue.length === 0) {
-      if (forceManual) {
-        notifyUser(
-          language === "fr"
-            ? "Toutes les observations sont déjà synchronisées."
-            : language === "ar"
-            ? "جميع الملاحظات متزامنة بالفعل."
-            : "All observations are already synced.",
-          "info"
-        );
-      }
-      return;
-    }
-
-    // Check for network stability to avoid mixed mode errors
-    const connection = (navigator as any).connection;
-    const isUnstable = connection && (
-      connection.effectiveType === 'slow-2g' || 
-      connection.effectiveType === '2g' || 
-      connection.downlink < 1
-    );
-
-    if (isUnstable) {
-      const confirmSync = window.confirm(
-        "Votre connexion semble instable.\nVoulez-vous tout de même synchroniser vos " + 
-        queue.length + " observations hors-ligne maintenant ?"
-      );
-      if (!confirmSync) {
-        return;
-      }
-    }
-
-    setIsSyncing(true);
-    console.log(`Syncing ${queue.length} offline observations...`);
-    let syncedCount = 0;
-
-    for (const item of queue) {
-      if (item.status === "syncing") continue;
-      const success = await syncSingleOfflineObservation(item);
-      if (success) syncedCount++;
-    }
-    
-    setIsSyncing(false);
-    if (syncedCount > 0) {
-      triggerHaptic("success");
-      notifyUser(
-        `${syncedCount} observation(s) synchronisée(s) avec succès.`,
-        "success",
-      );
-    }
-  };
-
-  const handleToggleForceOffline = (forced: boolean) => {
-    setForceOffline(forced);
-    localStorage.setItem("agro_force_offline", String(forced));
-    triggerHaptic("light");
-    if (forced) {
-      notifyUser(
-        language === "fr"
-          ? "Mode hors-ligne forcé activé. Les synchronisations seront manuelles."
-          : language === "ar"
-          ? "تم تفعيل وضع عدم الاتصال المفروض. ستكون المزامنة يدوية."
-          : "Forced offline mode activated. Sync will be manual.",
-        "info"
-      );
-    } else {
-      notifyUser(
-        language === "fr"
-          ? "Mode hors-ligne désactivé. Synchronisation automatique rétablie."
-          : language === "ar"
-          ? "تم إلغاء تفعيل وضع عدم الاتصال. المزامنة التلقائية مفعلة."
-          : "Forced offline mode disabled. Automatic sync enabled.",
-        "success"
-      );
-    }
-  };
-
-  const handleDeleteOfflineObservation = async (id: string) => {
-    try {
-      await deleteOfflineObservation(id);
-      setOfflineObservations((prev) => prev.filter((o) => o.id !== id));
-      notifyUser(
-        language === "fr"
-          ? "Observation locale supprimée."
-          : language === "ar"
-          ? "تم حذف الملاحظة المحلية."
-          : "Local observation deleted.",
-        "info"
-      );
-    } catch (e) {
-      console.error("Error deleting offline observation:", e);
-    }
-  };
-
-  const handleClearOfflineQueue = async () => {
-    try {
-      await clearOfflineObservations();
-      setOfflineObservations([]);
-      notifyUser(
-        language === "fr"
-          ? "File d'attente hors-ligne vidée."
-          : language === "ar"
-          ? "تم إفراغ قائمة الانتظار المحلية."
-          : "Offline queue cleared.",
-        "info"
-      );
-    } catch (e) {
-      console.error("Error clearing offline queue:", e);
-    }
+  const syncOfflineData = async () => {
+    if (!isOnline || !user || isSyncing) return;
+    await syncAllOfflineObservations(user, notifyUser);
   };
 
   useEffect(() => {
-    if (!forceOffline && isNetworkOnline && user) {
-      syncOfflineData(false);
+    if (isOnline && user) {
+      syncOfflineData();
     }
-  }, [forceOffline, isNetworkOnline, user]);
+  }, [isOnline, user]);
 
   useEffect(() => {
     if (!user || !isAuthReady || (userData && userData.accessStatus === "pending" && !isAdmin)) return;
@@ -4429,6 +4248,8 @@ export default function App() {
           .filter((o: any) => isAdmin || !o.isDeletedByCreator);
         setObservations(obs);
         setIsObservationsLoading(false);
+        // Mise en cache locale IndexedDB pour consultation hors-ligne fluide
+        cacheObservations(obs as unknown as Observation[]);
       },
       (error: any) => {
         console.error("Observations listener error", error);
@@ -4525,41 +4346,82 @@ export default function App() {
       }
     }
 
-    // 1.5 Handle Offline Mode
+    // 1.5 Handle Offline Mode (Zone Blanche - PWA)
     if (!isOnline) {
       const offlineId = crypto.randomUUID();
-      let offlineAnalysisResult = null;
+      
+      // Génération immédiate du diagnostic préliminaire agronomique local
+      const preliminaryDiagnostic = generatePreliminaryDiagnostic({
+        culture: metadata.culture,
+        variety: metadata.variety,
+        domain: metadata.domain,
+        userNotes: metadata.notes,
+        defects: metadata.defects,
+        scanType: metadata.scanType,
+      });
+
+      const offlineImagesData = aiImages.map((img, idx) => ({
+        dataUrl: img.dataUrl || tempThumbUrl,
+        storageBlob: storageImages[idx]?.blob,
+        mimeType: img.mimeType || 'image/jpeg',
+        aiBase64: img.base64Image,
+      }));
 
       const offlineObs: OfflineObservation = {
         id: offlineId,
         userId: user.uid,
         metadata: {
           ...metadata,
-          variety:
-            offlineAnalysisResult?.variety ||
-            metadata.variety ||
-            "Captur Hors-ligne",
-          culture:
-            offlineAnalysisResult?.culture ||
-            metadata.culture ||
-            "En attente...",
-          offlineAnalysis: offlineAnalysisResult,
+          variety: metadata.variety || preliminaryDiagnostic.variety || "Zone Blanche",
+          culture: metadata.culture || preliminaryDiagnostic.culture || "Culture terrain",
+          offlineAnalysis: preliminaryDiagnostic,
         },
-        fileData: tempThumbUrl, // Store thumb for preview
-        fileType: storageImages[0].mimeType,
+        fileData: tempThumbUrl, // Aperçu miniature
+        fileType: storageImages[0]?.mimeType || 'image/jpeg',
+        images: offlineImagesData,
         capturedAt: new Date().toISOString(),
-        status: offlineAnalysisResult ? "completed" : "pending",
+        status: "pending",
+        preliminaryAnalysis: preliminaryDiagnostic,
       };
+
       await saveOfflineObservation(offlineObs);
-      setOfflineObservations((prev) => [...prev, offlineObs]);
+      setOfflineObservations((prev) => [offlineObs, ...prev]);
+
+      // Sauvegarde dans le cache des observations locales pour affichage immédiat
+      await saveCachedObservation({
+        id: offlineId,
+        userId: user.uid,
+        domain: metadata.domain || 'Zone Blanche',
+        location: {
+          lat: metadata.lat ?? 48.8566,
+          lng: metadata.lng ?? 2.3522,
+        },
+        createdAt: new Date().toISOString() as any,
+        capturedAt: new Date().toISOString(),
+        imageUrl: tempThumbUrl,
+        imageUrls: [tempThumbUrl],
+        culture: preliminaryDiagnostic.culture || metadata.culture || 'Culture terrain',
+        variety: preliminaryDiagnostic.variety || metadata.variety || 'Zone Blanche',
+        species: preliminaryDiagnostic.species,
+        family: preliminaryDiagnostic.family,
+        bbchDominant: preliminaryDiagnostic.bbchDominant,
+        bbchSecondary: preliminaryDiagnostic.bbchSecondary,
+        organCounts: preliminaryDiagnostic.organCounts,
+        phenotypicTraits: preliminaryDiagnostic.phenotypicTraits,
+        description: preliminaryDiagnostic.description,
+        userNotes: metadata.notes || '',
+        status: 'pending',
+      } as any);
+
       setBackgroundTasks((prev) =>
         prev.filter((t) => t.id !== uploadTaskId && t.id !== analysisTaskId),
       );
 
-      const msg = offlineAnalysisResult
-        ? `Analyse locale réussie : ${offlineAnalysisResult.culture}. Enregistré hors-ligne.`
-        : "Observation enregistrée localement. L'IA l'analysera à la reconnexion.";
-      notifyUser(msg, "success");
+      triggerHaptic("success");
+      notifyUser(
+        `🌿 Diagnostic préliminaire généré (${preliminaryDiagnostic.culture}). Fiche mise en cache local IndexedDB.`,
+        "success"
+      );
       return;
     }
 
@@ -5714,63 +5576,27 @@ export default function App() {
             <p className="text-[9px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-[0.12em]">
               AGRONOMIE
             </p>
-            {forceOffline ? (
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(true)}
-                className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1 cursor-pointer hover:bg-amber-500/30 transition-colors"
-                title="Mode Hors-ligne Forcé (Actif) — Cliquez pour les paramètres"
-              >
-                <WifiOff size={10} />
-                <span>Hors-Ligne Forcé</span>
-              </button>
-            ) : (
-              <>
-                {firebaseStatus === "connected" && (
-                  <span
-                    className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0"
-                    title="Firebase Connecté"
-                  ></span>
-                )}
-                {firebaseStatus === "offline" && (
-                  <span
-                    className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shrink-0"
-                    title="Mode Hors-ligne (Actif)"
-                  ></span>
-                )}
-                {firebaseStatus === "error" && (
-                  <span
-                    className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0"
-                    title="Erreur Firebase"
-                  ></span>
-                )}
-              </>
+            {firebaseStatus === "connected" && (
+              <span
+                className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0"
+                title="Firebase Connecté"
+              ></span>
+            )}
+            {firebaseStatus === "offline" && (
+              <span
+                className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shrink-0"
+                title="Mode Hors-ligne (Actif)"
+              ></span>
+            )}
+            {firebaseStatus === "error" && (
+              <span
+                className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0"
+                title="Erreur Firebase"
+              ></span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowSettingsModal(true)}
-            className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-full border flex items-center justify-center transition-all active:scale-95 group cursor-pointer shrink-0 ${
-              forceOffline
-                ? "bg-amber-500/20 border-amber-500/50 text-amber-400 ring-2 ring-amber-500/30"
-                : "bg-slate-100 dark:bg-[#0d120f] border-slate-200/90 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-white/10"
-            }`}
-            title={
-              forceOffline
-                ? "Paramètres (Mode Hors-ligne forcé actif)"
-                : language === "fr"
-                ? "Paramètres de l'application"
-                : "Application Settings"
-            }
-            aria-label="Paramètres de l'application"
-          >
-            <Settings size={18} />
-            {forceOffline && (
-              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-500 rounded-full ring-2 ring-white dark:ring-[#0d120f]" />
-            )}
-          </button>
           <button
             type="button"
             onClick={() => {
@@ -5822,8 +5648,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content Area Container with Top Padding for Fixed Header */}
-      <div className="flex-1 overflow-y-auto pt-[calc(4.75rem+env(safe-area-inset-top,0px))] flex flex-col">
+      {/* Main Content Area Container */}
+      <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden pt-[calc(4.75rem+env(safe-area-inset-top,0px))]">
 
       {/* Logout Confirmation Modal */}
       <AnimatePresence>
@@ -5890,95 +5716,30 @@ export default function App() {
         </div>
       )}
 
-      {offlineObservations.length > 0 && (
-        <div className="bg-[#161c18] border-b border-white/5">
-          <div
-            className={`p-4 flex items-center justify-between transition-colors ${isSyncing ? "bg-emerald-500/10 border-emerald-500/20" : "bg-amber-500/10 border-amber-500/20"}`}
-          >
-            <div className="flex items-center gap-3">
-              {isSyncing ? (
-                <RefreshCw size={18} className="text-emerald-500 animate-spin" />
-              ) : (
-                <Cloud size={18} className="text-amber-400" />
-              )}
-              <div>
-                <p
-                  className={`text-xs font-bold uppercase tracking-wider ${isSyncing ? "text-emerald-400" : "text-amber-400"}`}
-                >
-                  {isSyncing
-                    ? (language === "fr" ? "Synchronisation en cours..." : "Syncing in progress...")
-                    : `${offlineObservations.length} ${language === "fr" ? "observation(s) en attente" : "pending observation(s)"}`}
-                </p>
-                {forceOffline ? (
-                  <p className="text-[10px] text-amber-400 font-medium flex items-center gap-1">
-                    <WifiOff size={10} />
-                    {language === "fr"
-                      ? "Mode hors-ligne forcé (Synchro manuelle)"
-                      : "Forced offline mode (Manual sync)"}
-                  </p>
-                ) : !isNetworkOnline ? (
-                  <p className="text-[10px] text-amber-400 font-medium">
-                    {language === "fr"
-                      ? "En attente de connexion internet"
-                      : "Waiting for internet connection"}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(true)}
-                className="p-1.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-colors"
-                title="Gérer les paramètres hors-ligne"
-              >
-                <Settings size={15} />
-              </button>
-              {isNetworkOnline && !isSyncing && (
-                <button
-                  type="button"
-                  onClick={() => syncOfflineData(true)}
-                  className="px-3 py-1.5 bg-amber-600 text-white text-[10px] font-bold rounded-xl uppercase tracking-widest hover:bg-amber-700 transition-colors shadow-none flex items-center gap-1.5"
-                >
-                  <RefreshCw size={12} />
-                  <span>{language === "fr" ? "Tout Sync" : "Sync All"}</span>
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <div className="max-h-48 overflow-y-auto px-4 py-2 space-y-2 bg-[#0d120f]/50">
-             {offlineObservations.map((obs) => (
-               <div key={obs.id} className="flex items-center justify-between p-2 bg-[#1a231d] rounded-lg border border-white/5">
-                 <div className="flex items-center gap-3">
-                    <img src={obs.fileData} alt="" className="w-10 h-10 rounded-md object-cover border border-white/10" />
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-slate-200">
-                        {obs.metadata?.culture || obs.metadata?.offlineAnalysis?.culture || 'Observation'}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        {new Date(obs.capturedAt).toLocaleTimeString()}
-                      </span>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    {obs.status === 'syncing' && <RefreshCw size={14} className="text-emerald-500 animate-spin" />}
-                    {obs.status === 'pending' && <Clock size={14} className="text-amber-400" />}
-                    {obs.status === 'error' && (
-                      <button 
-                        onClick={() => syncSingleOfflineObservation(obs)} 
-                        className="p-1.5 bg-red-500/10 rounded-md text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-colors" 
-                        title="Réessayer"
-                      >
-                         <RefreshCw size={14} />
-                      </button>
-                    )}
-                 </div>
-               </div>
-             ))}
-          </div>
-        </div>
-      )}
+      <div className="px-4 pt-3">
+        <OfflineSyncBanner
+          isOnline={isOnline}
+          user={user}
+          offlineObservations={offlineObservations}
+          onOpenOfflineDrawer={() => setIsOfflineDrawerOpen(true)}
+          t={t}
+        />
+      </div>
+
+      <OfflineObservationsDrawer
+        isOpen={isOfflineDrawerOpen}
+        onClose={() => setIsOfflineDrawerOpen(false)}
+        offlineObservations={offlineObservations}
+        user={user}
+        isOnline={isOnline}
+        onDeleteObservation={async (id: string) => {
+          await deleteOfflineObservation(id);
+          await deleteCachedObservation(id);
+          setOfflineObservations((prev) => prev.filter((o) => o.id !== id));
+          setObservations((prev) => prev.filter((o) => o.id !== id));
+        }}
+        t={t}
+      />
 
       {deferredPrompt && (
         <div className="p-4 bg-[#161c18] border-b border-white/5 text-emerald-400 flex items-center justify-between select-none">
@@ -6043,35 +5804,21 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-4 pb-[calc(7rem+env(safe-area-inset-bottom,0px))] scroll-smooth flex flex-col min-h-0">
-        <div className="rounded-3xl overflow-hidden flex-1 flex flex-col min-h-0 relative">
+      <main className={`flex-1 min-h-0 w-full flex flex-col ${activeTab === 'map' ? 'overflow-hidden p-0 pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))]' : 'overflow-y-auto px-4 pt-2 pb-36 scroll-smooth'}`}>
+        <div className={`w-full ${activeTab === 'map' ? 'flex-1 h-full relative' : 'min-h-full'}`}>
         {activeTab === "scan" && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-6"
+            className="space-y-6 pb-32"
           >
             {!analysis && (
               <div className="space-y-4">
                 {!isOnline && (
                   <div className="flex justify-between items-center bg-[#161c18] border border-white/5 p-3 rounded-2xl">
-                    <div className="flex items-center gap-2">
-                      <WifiOff size={14} className="text-amber-400" />
-                      <span className="text-xs font-bold text-slate-300">Mode d'exécution :</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/20">
-                        {forceOffline ? "Hors-ligne forcé" : "En attente réseau"}
-                      </div>
-                      {forceOffline && (
-                        <button
-                          type="button"
-                          onClick={() => setShowSettingsModal(true)}
-                          className="text-[10px] text-amber-400 underline font-semibold hover:text-amber-300 transition-colors"
-                        >
-                          Modifier
-                        </button>
-                      )}
+                    <span className="text-xs font-bold text-slate-300">Mode d'exécution :</span>
+                    <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-500/20 text-amber-400 border border-amber-500/20">
+                      En attente réseau
                     </div>
                   </div>
                 )}
@@ -6543,6 +6290,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
+                <div className="h-12 w-full shrink-0 pointer-events-none" aria-hidden="true" />
               </div>
             )}
           </motion.div>
@@ -6552,7 +6300,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="space-y-6"
+            className="space-y-6 pb-36"
           >
             {/* Weather Widget */}
             {weather ? (
@@ -6692,7 +6440,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex-1 flex flex-col w-full h-full min-h-0"
+            className="flex-1 w-full h-full relative flex flex-col min-h-[400px]"
           >
             <MapView
               markers={observations
@@ -6720,7 +6468,7 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="space-y-6 pb-24"
+            className="space-y-6 pb-36"
           >
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-bold text-slate-200">{t.catalog}</h2>
@@ -6762,18 +6510,13 @@ export default function App() {
                     {isSelectionMode ? (
                       <>
                         
-                        {selectedIds.length === 1 && (
-                          <button
-                            onClick={() => {
-                              setEditingId(selectedIds[0]);
-                              setIsSelectionMode(false);
-                              setSelectedIds([]);
-                            }}
-                            className="p-2 bg-blue-500/10 text-blue-400 rounded-lg flex items-center gap-1 text-xs font-bold hover:bg-blue-500/20"
-                          >
-                            <Edit2 size={16} /> Éditer
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setBulkEditState({ isOpen: true })}
+                          disabled={selectedIds.length === 0}
+                          className="p-2 bg-blue-500/10 text-blue-400 rounded-lg flex items-center gap-1 text-xs font-bold hover:bg-blue-500/20"
+                        >
+                          <Edit2 size={16} />({selectedIds.length}) Éditer
+                        </button>
                         <button
                           onClick={handleBulkDelete}
 
@@ -7156,6 +6899,7 @@ export default function App() {
                 ))
               )}
             </div>
+            <div className="h-12 w-full shrink-0 pointer-events-none" aria-hidden="true" />
           </motion.div>
         )}
 
@@ -7163,12 +6907,14 @@ export default function App() {
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
+            className="pb-36"
           >
             <AdminView
               t={t}
               isArabic={isArabic}
               onObservationClick={setSelectedObservation}
             />
+            <div className="h-12 w-full shrink-0 pointer-events-none" aria-hidden="true" />
           </motion.div>
         )}
       </div>
@@ -7359,25 +7105,7 @@ export default function App() {
         ]}
       />
       
-      {/* Settings Modal */}
-      <SettingsModal
-        isOpen={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-        forceOffline={forceOffline}
-        onToggleForceOffline={handleToggleForceOffline}
-        isNetworkOnline={isNetworkOnline}
-        offlineObservations={offlineObservations}
-        isSyncing={isSyncing}
-        onSyncAll={() => syncOfflineData(true)}
-        onSyncSingle={syncSingleOfflineObservation}
-        onDeleteSingle={handleDeleteOfflineObservation}
-        onClearQueue={handleClearOfflineQueue}
-        themeMode={themeMode}
-        onChangeTheme={setThemeMode}
-        language={language}
-        onChangeLanguage={setLanguage}
-        firebaseStatus={firebaseStatus}
-      />
+
 
       {/* Notifications UI */}
       {appNotifications.length > 0 && (
