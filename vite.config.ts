@@ -84,7 +84,7 @@ export default defineConfig(({mode}) => {
       }),
     ],
     build: {
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 2500,
       rollupOptions: {
         output: {
           manualChunks: {
@@ -96,7 +96,10 @@ export default defineConfig(({mode}) => {
             'chart-vendor': ['recharts'],
             'pdf-vendor': ['jspdf'],
             'aws-vendor': ['@aws-sdk/client-s3'],
-            'ai-vendor': ['@google/genai']
+            'ai-vendor': ['@google/genai'],
+            'xlsx-vendor': ['xlsx'],
+            'html2canvas-vendor': ['html2canvas'],
+            'dompurify-vendor': ['dompurify']
           }
         }
       }
