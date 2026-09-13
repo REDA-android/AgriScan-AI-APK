@@ -1,4 +1,5 @@
 import { LocalNotifications } from "@capacitor/local-notifications";
+import { generateWeatherPDF } from "./services/weatherPdfService";
 import React, {
   useEffect,
   useState,
@@ -2029,7 +2030,6 @@ function WeatherCard({
 
   const handleExportWeatherReport = async () => {
     try {
-      const { generateWeatherPDF } = await import("./services/weatherPdfService");
       generateWeatherPDF(weather);
     } catch (e) {
       console.error("Erreur lors de la génération du PDF", e);
