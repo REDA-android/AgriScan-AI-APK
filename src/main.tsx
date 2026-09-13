@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { Analytics } from "@vercel/analytics/react";
 
 // Unregister any old service workers running in Capacitor/WebView causing sw.js 404s
 if ('serviceWorker' in navigator) {
@@ -72,5 +73,6 @@ window.addEventListener('unhandledrejection', function(event) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <Analytics />
   </StrictMode>,
 );
