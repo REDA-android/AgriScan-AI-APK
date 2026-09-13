@@ -61,6 +61,27 @@
         "capturedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "imageUrl", "family", "species", "variety", "location"]
+    },
+    "PlantDisease": {
+      "title": "Maladie ou Ravageur Végétal",
+      "description": "Fiche phytosanitaire complète avec symptômes, causes et traitements biologiques/chimiques.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "scientificName": { "type": "string" },
+        "category": { "type": "string", "enum": ["disease", "pest"] },
+        "type": { "type": "string", "enum": ["fungal", "bacterial", "viral", "insect", "mite", "nematode", "deficiency"] },
+        "affectedCrops": { "type": "array", "items": { "type": "string" } },
+        "severity": { "type": "string", "enum": ["low", "moderate", "high", "critical"] },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "symptoms": { "type": "string" },
+        "causes": { "type": "string" },
+        "organicTreatments": { "type": "array", "items": { "type": "string" } },
+        "chemicalTreatments": { "type": "array", "items": { "type": "string" } },
+        "preventionMethods": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "name", "category", "symptoms", "causes"]
     }
   },
   "firestore": {
@@ -71,6 +92,10 @@
     "/observations/{obsId}": {
       "schema": "Observation",
       "description": "Liste des analyses botaniques"
+    },
+    "/diseases/{diseaseId}": {
+      "schema": "PlantDisease",
+      "description": "Fiches des maladies et ravageurs des cultures"
     }
   }
 }

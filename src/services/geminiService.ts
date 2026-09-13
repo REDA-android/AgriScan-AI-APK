@@ -150,12 +150,27 @@ export async function chatWithGemini(
   }));
   contents.push({ role: "user", parts: [{ text: message }] });
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
-    contents: contents,
-  });
+  const candidateModels = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.8-flash"];
+  let lastError: any = null;
 
-  return response.text || "";
+  for (const mod of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model: mod,
+        contents: contents,
+      });
+      return response.text || "";
+    } catch (err: any) {
+      lastError = err;
+      if (err.message?.includes("503") || err.message?.includes("UNAVAILABLE")) {
+        await new Promise((r) => setTimeout(r, 1200));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError;
 }
 
 export async function analyzePlantImage(
@@ -258,71 +273,88 @@ export async function analyzePlantImage(
     2. Identify the dominant phenological stage...`,
   });
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
-    contents: [{ role: "user", parts: parts }],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          family: { type: Type.STRING },
-          species: { type: Type.STRING },
-          variety: { type: Type.STRING },
-          culture: { type: Type.STRING },
-          bbchDominant: { type: Type.STRING },
-          bbchSecondary: { type: Type.ARRAY, items: { type: Type.STRING } },
-          organCounts: {
-            type: Type.OBJECT,
-            properties: {
-              flowers: { type: Type.NUMBER },
-              fruits: { type: Type.NUMBER },
-              details: { type: Type.STRING },
-            },
-            required: ["flowers", "fruits", "details"],
+  const configObj = {
+    responseMimeType: "application/json",
+    responseSchema: {
+      type: Type.OBJECT,
+      properties: {
+        family: { type: Type.STRING },
+        species: { type: Type.STRING },
+        variety: { type: Type.STRING },
+        culture: { type: Type.STRING },
+        bbchDominant: { type: Type.STRING },
+        bbchSecondary: { type: Type.ARRAY, items: { type: Type.STRING } },
+        organCounts: {
+          type: Type.OBJECT,
+          properties: {
+            flowers: { type: Type.NUMBER },
+            fruits: { type: Type.NUMBER },
+            details: { type: Type.STRING },
           },
-          phenologicalStage: { type: Type.STRING },
-          stageIntensity: { type: Type.STRING },
-          stageQuality: { type: Type.STRING },
-          characterizationTraits: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-          },
-          phenotypicTraits: {
-            type: Type.OBJECT,
-            properties: {
-              color: { type: Type.STRING },
-              shape: { type: Type.STRING },
-              size: { type: Type.STRING },
-              healthStatus: { type: Type.STRING },
-              diseasesOrDeficiencies: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-              },
-            },
-            required: [
-              "color",
-              "shape",
-              "size",
-              "healthStatus",
-              "diseasesOrDeficiencies",
-            ],
-          },
-          description: { type: Type.STRING },
+          required: ["flowers", "fruits", "details"],
         },
-        required: [
-          "family",
-          "species",
-          "variety",
-          "culture",
-          "phenotypicTraits",
-          "description",
-          "phenologicalStage",
-        ],
+        phenologicalStage: { type: Type.STRING },
+        stageIntensity: { type: Type.STRING },
+        stageQuality: { type: Type.STRING },
+        characterizationTraits: {
+          type: Type.ARRAY,
+          items: { type: Type.STRING },
+        },
+        phenotypicTraits: {
+          type: Type.OBJECT,
+          properties: {
+            color: { type: Type.STRING },
+            shape: { type: Type.STRING },
+            size: { type: Type.STRING },
+            healthStatus: { type: Type.STRING },
+            diseasesOrDeficiencies: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+          },
+          required: [
+            "color",
+            "shape",
+            "size",
+            "healthStatus",
+            "diseasesOrDeficiencies",
+          ],
+        },
+        description: { type: Type.STRING },
       },
+      required: [
+        "family",
+        "species",
+        "variety",
+        "culture",
+        "phenotypicTraits",
+        "description",
+        "phenologicalStage",
+      ],
     },
-  });
+  };
 
-  if (!response.text) throw new Error("Empty response from Gemini");
-  return JSON.parse(response.text);
+  const candidateModels = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.8-flash"];
+  let lastError: any = null;
+
+  for (const mod of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model: mod,
+        contents: [{ role: "user", parts: parts }],
+        config: configObj,
+      });
+      if (!response.text) throw new Error("Empty response from Gemini");
+      return JSON.parse(response.text);
+    } catch (err: any) {
+      lastError = err;
+      if (err.message?.includes("503") || err.message?.includes("UNAVAILABLE")) {
+        await new Promise((r) => setTimeout(r, 1200));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError;
 }

@@ -74,8 +74,109 @@ const handleAIError = (error: any, res: any) => {
       });
   }
 
-  res.status(status).json({ error: message });
+  if (
+    message.includes("503") ||
+    message.includes("UNAVAILABLE") ||
+    message.includes("high demand") ||
+    status === 503
+  ) {
+    return res.status(503).json({
+      error:
+        "Le modèle IA connaît actuellement une forte affluence temporaire (503). Veuillez patienter quelques secondes et réessayer.",
+      retryable: true,
+      original: message,
+    });
+  }
+
+  res.status(status >= 400 && status < 600 ? status : 500).json({ error: message });
 };
+
+// Robust helper to call Gemini with multi-model fallback cascade for 503 / high-demand resilience
+export async function callGeminiWithFallback({
+  ai,
+  requestedModel,
+  contents,
+  config,
+}: {
+  ai: any;
+  requestedModel?: string;
+  contents: any;
+  config?: any;
+}) {
+  const primaryModel = requestedModel || "gemini-3.8-flash";
+  const modelCandidates: string[] = [primaryModel];
+
+  if (primaryModel === "gemini-3.8-flash") {
+    modelCandidates.push("gemini-flash-latest", "gemini-3.6-flash");
+  } else if (primaryModel === "gemini-3.6-flash") {
+    modelCandidates.push("gemini-flash-latest", "gemini-3.8-flash");
+  } else if (primaryModel === "gemini-flash-latest") {
+    modelCandidates.push("gemini-3.8-flash", "gemini-3.6-flash");
+  } else {
+    modelCandidates.push("gemini-3.8-flash", "gemini-flash-latest");
+  }
+
+  // Remove duplicates while preserving order
+  const modelsToTry = Array.from(new Set(modelCandidates));
+  let lastError: any = null;
+
+  for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
+    const currentModel = modelsToTry[mIdx];
+    const maxRetries = mIdx === 0 ? 2 : 1;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `[AI] Requesting model ${currentModel} (attempt ${attempt + 1}/${maxRetries + 1})...`
+        );
+        const response = await ai.models.generateContent({
+          model: currentModel,
+          contents,
+          config,
+        });
+        return response;
+      } catch (err: any) {
+        lastError = err;
+        const msg = err.message || String(err);
+        const status = err.status || 0;
+        const is503 =
+          msg.includes("503") ||
+          msg.includes("UNAVAILABLE") ||
+          msg.includes("high demand") ||
+          status === 503;
+        const is429 =
+          msg.includes("429") ||
+          msg.includes("RESOURCE_EXHAUSTED") ||
+          status === 429;
+
+        if (is503 || is429) {
+          console.warn(
+            `[AI] Model ${currentModel} encountered ${
+              is503 ? "503 High Demand" : "429 Rate Limit"
+            } (attempt ${attempt + 1}/${maxRetries + 1}):`,
+            msg.slice(0, 160)
+          );
+
+          if (attempt < maxRetries) {
+            const delay = 1200 * Math.pow(1.5, attempt) + Math.random() * 500;
+            console.log(`[AI] Retrying ${currentModel} in ${Math.round(delay)}ms...`);
+            await new Promise((r) => setTimeout(r, delay));
+            continue;
+          } else if (mIdx < modelsToTry.length - 1) {
+            const nextModel = modelsToTry[mIdx + 1];
+            console.log(`[AI] Switching to fallback model: ${nextModel}...`);
+            break;
+          }
+        } else {
+          // If non-retryable error (e.g. 400 Invalid Argument or 403 Forbidden), rethrow immediately
+          throw err;
+        }
+      }
+    }
+  }
+
+  throw lastError;
+}
 
 app.post(
   ["/api/gemini/generateContent", "/gemini/generateContent"],
@@ -99,27 +200,12 @@ app.post(
     try {
       const ai = getAI(apiKey);
 
-      // Retry logic for 503 errors
-      let response;
-      let retries = 2;
-      while (retries >= 0) {
-        try {
-          response = await ai.models.generateContent({
-            model: req.body.model || "gemini-3.6-flash",
-            contents: req.body.contents,
-            config: req.body.config,
-          });
-          break;
-        } catch (err: any) {
-          if (err.message?.includes("503") && retries > 0) {
-            console.log(`[AI] 503 error, retrying... (${retries} left)`);
-            retries--;
-            await new Promise((r) => setTimeout(r, 2000));
-            continue;
-          }
-          throw err;
-        }
-      }
+      const response = await callGeminiWithFallback({
+        ai,
+        requestedModel: model || "gemini-3.8-flash",
+        contents,
+        config,
+      });
 
       res.json({
         text: response.text,
@@ -180,101 +266,87 @@ app.post(["/api/gemini/analyze", "/gemini/analyze"], async (req, res) => {
       8. Provide a detailed technical description.`,
     });
 
-    let response;
-    let retries = 2;
-    while (retries >= 0) {
-      try {
-        response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents: [{ role: "user", parts: parts }],
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
+    const response = await callGeminiWithFallback({
+      ai,
+      requestedModel: "gemini-3.6-flash",
+      contents: [{ role: "user", parts: parts }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            family: { type: Type.STRING },
+            species: { type: Type.STRING },
+            variety: { type: Type.STRING },
+            culture: {
+              type: Type.STRING,
+              description: "Main culture name",
+            },
+            bbchDominant: {
+              type: Type.STRING,
+              description: "Dominant BBCH stage",
+            },
+            bbchSecondary: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "Secondary BBCH stages present",
+            },
+            organCounts: {
               type: Type.OBJECT,
               properties: {
-                family: { type: Type.STRING },
-                species: { type: Type.STRING },
-                variety: { type: Type.STRING },
-                culture: {
+                flowers: { type: Type.NUMBER },
+                fruits: { type: Type.NUMBER },
+                details: {
                   type: Type.STRING,
-                  description: "Main culture name",
+                  description: "Details of counts by development stage",
                 },
-                bbchDominant: {
-                  type: Type.STRING,
-                  description: "Dominant BBCH stage",
-                },
-                bbchSecondary: {
+              },
+              required: ["flowers", "fruits", "details"],
+            },
+            phenologicalStage: {
+              type: Type.STRING,
+              description: "General phenological stage name",
+            },
+            stageIntensity: { type: Type.STRING },
+            stageQuality: { type: Type.STRING },
+            characterizationTraits: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            description: { type: Type.STRING },
+            phenotypicTraits: {
+              type: Type.OBJECT,
+              properties: {
+                color: { type: Type.STRING },
+                shape: { type: Type.STRING },
+                size: { type: Type.STRING },
+                healthStatus: { type: Type.STRING },
+                diseasesOrDeficiencies: {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
-                  description: "Secondary BBCH stages present",
-                },
-                organCounts: {
-                  type: Type.OBJECT,
-                  properties: {
-                    flowers: { type: Type.NUMBER },
-                    fruits: { type: Type.NUMBER },
-                    details: {
-                      type: Type.STRING,
-                      description: "Details of counts by development stage",
-                    },
-                  },
-                  required: ["flowers", "fruits", "details"],
-                },
-                phenologicalStage: {
-                  type: Type.STRING,
-                  description: "General phenological stage name",
-                },
-                stageIntensity: { type: Type.STRING },
-                stageQuality: { type: Type.STRING },
-                characterizationTraits: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                },
-                description: { type: Type.STRING },
-                phenotypicTraits: {
-                  type: Type.OBJECT,
-                  properties: {
-                    color: { type: Type.STRING },
-                    shape: { type: Type.STRING },
-                    size: { type: Type.STRING },
-                    healthStatus: { type: Type.STRING },
-                    diseasesOrDeficiencies: {
-                      type: Type.ARRAY,
-                      items: { type: Type.STRING },
-                    },
-                  },
-                  required: [
-                    "color",
-                    "shape",
-                    "size",
-                    "healthStatus",
-                    "diseasesOrDeficiencies",
-                  ],
                 },
               },
               required: [
-                "family",
-                "species",
-                "variety",
-                "culture",
-                "phenotypicTraits",
-                "description",
-                "phenologicalStage",
+                "color",
+                "shape",
+                "size",
+                "healthStatus",
+                "diseasesOrDeficiencies",
               ],
             },
           },
-        });
-        break;
-      } catch (err: any) {
-        if (err.message?.includes("503") && retries > 0) {
-          console.log(`[AI-Analyze] 503 error, retrying... (${retries} left)`);
-          retries--;
-          await new Promise((r) => setTimeout(r, 2000));
-          continue;
-        }
-        throw err;
-      }
-    }
+          required: [
+            "family",
+            "species",
+            "variety",
+            "culture",
+            "phenotypicTraits",
+            "description",
+            "phenologicalStage",
+          ],
+        },
+      },
+    });
 
     if (!response.text) {
       throw new Error("Empty response from Gemini");
@@ -312,8 +384,9 @@ app.post(["/api/gemini/chat", "/gemini/chat"], async (req, res) => {
     }));
     contents.push({ role: "user", parts: [{ text: message }] });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+    const response = await callGeminiWithFallback({
+      ai,
+      requestedModel: "gemini-3.6-flash",
       contents: contents,
     });
 
@@ -596,6 +669,72 @@ app.get(["/api/weather/forecast", "/weather/forecast"], async (req, res) => {
   } catch (error: any) {
     console.error("[Weather] Weather proxy error:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Realtime Gemini Live Multimodal Frame Analysis (Hybrid / HTTP streaming fallback)
+app.post(["/api/gemini/live-analyze", "/gemini/live-analyze"], async (req, res) => {
+  try {
+    const { image, prompt, question, history, apiKey: userKey } = req.body;
+    if (!image) {
+      return res.status(400).json({ error: "Image vidéo requise pour l'analyse en temps réel" });
+    }
+
+    const ai = getAI(userKey);
+    const base64Data = image.includes(",") ? image.split(",")[1] : image;
+
+    const parts: any[] = [
+      {
+        inlineData: {
+          mimeType: "image/jpeg",
+          data: base64Data,
+        },
+      },
+    ];
+
+    const systemPrompt = `Tu es AgriScan Live, expert agronome en direct. Tu analyses ce flux vidéo en temps réel pour un agriculteur ou jardinier.
+Identifie immédiatement la plante, son état sanitaire, la présence éventuelle de maladies, ravageurs ou carences, et donne un conseil pratique immédiat.
+Réponds STRICTEMENT sous format JSON valide avec la structure suivante :
+{
+  "plantName": "Nom commun (Nom latin)",
+  "confidence": 95,
+  "healthStatus": "Excellente" | "Bonne" | "Vigilance" | "Attaque / Maladie critique",
+  "diagnosis": "Nom précis de la pathologie ou 'Plante saine'",
+  "symptoms": "Description concise des symptômes visibles (1 phrase)",
+  "recommendedAction": "Action de biocontrôle ou traitement immédiat (1-2 phrases)",
+  "vocalAdvice": "Phrase naturelle et bienveillante d'environ 15-25 mots à prononcer à voix haute pour informer l'agriculteur."
+}`;
+
+    const userText = question || prompt || "Analyse cette culture en temps réel. Que vois-tu ?";
+    parts.push({ text: `${systemPrompt}\n\nQuestion de l'utilisateur : ${userText}` });
+
+    const result = await callGeminiWithFallback({
+      ai,
+      requestedModel: "gemini-3.8-flash",
+      contents: [{ role: "user", parts }],
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = result?.text || "{}";
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      const match = text.match(/\{[\s\S]*\}/);
+      parsed = match ? JSON.parse(match[0]) : {};
+    }
+
+    res.json({
+      success: true,
+      data: parsed,
+      modelUsed: result.modelUsed,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("[Gemini Live Analyze] Error:", error);
+    handleAIError(error, res);
   }
 });
 

@@ -158,6 +158,13 @@ body.light-mode .bg-\[\#0d120f\],
 body.light-mode .bg-\[\#121c15\],
 body.light-mode .bg-\[\#121914\],
 body.light-mode .bg-\[\#121814\],
+body.light-mode .bg-\[\#121915\],
+body.light-mode .bg-\[\#0b120e\],
+body.light-mode .bg-\[\#131d17\],
+body.light-mode .bg-\[\#0e1a14\],
+body.light-mode .bg-\[\#141d18\],
+body.light-mode .bg-\[\#0c1410\],
+body.light-mode .bg-\[\#080c09\],
 body.light-mode .bg-\[\#0a0f0c\],
 body.light-mode .bg-\[\#0a0d0b\],
 body.light-mode .bg-\[\#0d1610\],
@@ -171,6 +178,12 @@ body.light-mode [class*="bg-[#0d120f]"]:not([class*="dark:"]),
 body.light-mode [class*="bg-[#0a0f0c]"]:not([class*="dark:"]),
 body.light-mode [class*="bg-[#121914]"]:not([class*="dark:"]),
 body.light-mode [class*="bg-[#121814]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#121915]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#0b120e]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#131d17]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#0e1a14]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#141d18]"]:not([class*="dark:"]),
+body.light-mode [class*="bg-[#0c1410]"]:not([class*="dark:"]),
 body.light-mode .bg-slate-900,
 body.light-mode .bg-slate-950,
 body.light-mode .bg-emerald-950,
@@ -178,6 +191,18 @@ body.light-mode .btn-glass {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Subtle inner surfaces in Light Mode */
+body.light-mode .bg-white\/5,
+body.light-mode .bg-white\/10 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-mode .hover\:bg-white\/10:hover,
+body.light-mode .hover\:bg-white\/15:hover {
+  background-color: #f1f5f9 !important;
 }
 
 /* Sub-containers & inner cards in Light Mode */

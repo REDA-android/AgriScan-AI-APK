@@ -1,5 +1,5 @@
 import exifr from 'exifr';
-import { Camera, Image as ImageIcon, MapPin, Upload, X, WifiOff, CheckCircle, Plus, Play, ChevronDown, ChevronUp, Sliders, Check, RefreshCw, Mic, Video, FileText, Paperclip, Volume2, Square, Link as LinkIcon, Scan, Sprout, Bug, Ruler, Scale, ClipboardCheck, FlaskConical, Lock, Unlock, ChevronRight, Edit3, Trash2, Sparkles, Clock, Send, ShieldCheck } from 'lucide-react';
+import { Camera, Image as ImageIcon, MapPin, Upload, X, WifiOff, CheckCircle, Plus, Play, ChevronDown, ChevronUp, Sliders, Check, RefreshCw, Mic, Video, FileText, Paperclip, Volume2, Square, Link as LinkIcon, Scan, Sprout, Bug, Ruler, Scale, ClipboardCheck, FlaskConical, Lock, Unlock, ChevronRight, Edit3, Trash2, Sparkles, Clock, Send, ShieldCheck, Radio } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useRef, useState, useEffect, ChangeEvent } from 'react';
 
@@ -49,6 +49,7 @@ interface CameraViewProps {
   proRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
   proRequestMessage?: string;
   onRequestProAccess?: (message: string) => Promise<void>;
+  onOpenGeminiLive?: () => void;
 }
 
 // Convolution-based image sharpening on a 2D canvas context
@@ -157,7 +158,8 @@ export default function CameraView({
   isPro = false,
   proRequestStatus = null,
   proRequestMessage = '',
-  onRequestProAccess
+  onRequestProAccess,
+  onOpenGeminiLive
 }: CameraViewProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
@@ -532,7 +534,7 @@ export default function CameraView({
   };
 
   const handleAnalyze = async () => {
-    if (files.length === 0 || !variety.trim()) return;
+    if (files.length === 0) return;
     
     setIsProcessing(true);
     
@@ -542,11 +544,13 @@ export default function CameraView({
     let longitude = manualLocation?.lng || currentLocation?.lng;
     let date = exifDate;
 
+    const effectiveVariety = variety.trim() || culture.trim() || (!isOnline ? "Spécimen Zone Blanche" : "Culture de plein champ");
+
     const metadata: CaptureMetadata = {
       lat: latitude,
       lng: longitude,
       date,
-      variety: variety.trim(),
+      variety: effectiveVariety,
       culture: culture.trim() || undefined,
       domain: domain.trim() || undefined,
       notes: notes.trim() || undefined,
@@ -840,6 +844,36 @@ export default function CameraView({
                 </div>
               </div>
             </div>
+
+            {/* Realtime Gemini Live Launch Button */}
+            {onOpenGeminiLive && (
+              <button
+                type="button"
+                onClick={onOpenGeminiLive}
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-emerald-950/90 via-slate-900 to-teal-950/90 hover:from-emerald-900 hover:to-teal-900 border border-emerald-500/40 rounded-2xl text-xs font-black text-emerald-300 flex items-center justify-between transition-all cursor-pointer shadow-[0_4px_20px_rgba(16,185,129,0.2)] group active:scale-[0.99]"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                    <Radio size={15} className="animate-pulse" />
+                  </div>
+                  <div className="text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-white font-black text-xs">Gemini Live</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold uppercase tracking-wider">
+                        En direct
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      Analyse vidéo & voix bidirectionnelle
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 group-hover:translate-x-0.5 transition-transform">
+                  <span>Démarrer</span>
+                  <ChevronRight size={14} />
+                </div>
+              </button>
+            )}
 
             {/* Secondary buttons */}
             <div className="space-y-2">
@@ -1308,11 +1342,20 @@ export default function CameraView({
       {/* Action Button */}
       <button 
         onClick={handleAnalyze}
-        disabled={files.length === 0 || isProcessing || !variety.trim()}
-        className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/30 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer my-4"
+        disabled={files.length === 0 || isProcessing}
+        className={`w-full py-4 text-white rounded-2xl font-bold transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer my-4 ${
+          !isOnline
+            ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-900/30'
+            : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-900/30'
+        }`}
       >
         {isProcessing ? (
           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        ) : !isOnline ? (
+          <>
+            <WifiOff size={18} />
+            Enregistrer en zone blanche (Hors-ligne)
+          </>
         ) : (
           <>
             <Play size={18} />

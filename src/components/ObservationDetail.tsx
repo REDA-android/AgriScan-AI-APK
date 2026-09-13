@@ -1,34 +1,60 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowLeft, MapPin, Calendar, Trash2, RefreshCw, Save, Info, CheckCircle2, AlertCircle, Clock, ChevronRight, ChevronLeft, Maximize2, Edit2, X, Share2, Download as QrDownload, FileText, MessageSquare, Send, Mic, Square, Paperclip, Volume2, Video, File, Film, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, Trash2, RefreshCw, Save, Info, CheckCircle2, AlertCircle, Clock, ChevronRight, ChevronLeft, Maximize2, Edit2, X, Share2, Download as QrDownload, FileText, MessageSquare, Send, Mic, Square, Paperclip, Volume2, Video, File, Film, Image as ImageIcon, ShieldCheck, Bug, Leaf, FlaskConical, ExternalLink, Sparkles } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Observation, CommentAttachment, AudioNote, MediaNote } from '../types';
 import VoiceDictationButton from './VoiceDictationButton';
+import { linkObservationToDiseases, PlantIssue, findMatchingDiseases } from '../data/plantDiseasesData';
 
 interface ObservationDetailProps {
   observation: Observation;
-  onBack: () => void;
-  onDelete: (id: string) => void;
-  onReset: (id: string) => void;
-  onSaveNotes: (id: string, notes: string) => void;
+  onBack?: () => void;
+  onClose?: () => void;
+  onDelete?: (id: string) => void;
+  onReset?: (id: string) => void;
+  onRetry?: (id: string) => void;
+  onSaveNotes?: (id: string, notes: string) => void;
+  onOpenDiseaseDatabase?: (diseaseId?: string) => void;
+  onDownload?: (url: string, filename: string) => void;
+  isDeleting?: boolean;
+  isAdmin?: boolean;
+  isArabic?: boolean;
+  language?: string;
   t: any;
 }
 
 const ObservationDetail: React.FC<ObservationDetailProps> = ({
   observation,
   onBack,
+  onClose,
   onDelete,
   onReset,
+  onRetry,
   onSaveNotes,
+  onOpenDiseaseDatabase,
+  onDownload,
+  isDeleting,
+  isAdmin,
+  isArabic,
+  language,
   t
 }) => {
+  const handleClose = onBack || onClose || (() => {});
+  const handleDelete = onDelete || (() => {});
+  const handleRetry = onRetry || onReset || (() => {});
   const [notes, setNotes] = React.useState(observation.userNotes || '');
   const [isEditingNotes, setIsEditingNotes] = React.useState(false);
   const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
   const [qrCodeDataUrl, setQrCodeDataUrl] = React.useState<string>('');
+  const [selectedDiseaseModal, setSelectedDiseaseModal] = React.useState<PlantIssue | null>(null);
+  const [diseaseTab, setDiseaseTab] = React.useState<'symptoms' | 'organic' | 'chemical' | 'prevention'>('symptoms');
   const [comments, setComments] = React.useState<any[]>(
     Array.isArray(observation.comments) ? observation.comments : []
   );
+
+  const linkedDiseases = React.useMemo(() => {
+    return linkObservationToDiseases(observation);
+  }, [observation]);
   const [newCommentText, setNewCommentText] = React.useState('');
   
   // Audio & Attachment state for comments
@@ -262,7 +288,7 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Sticky Header */}
       <div className="sticky top-0 z-30 bg-[#161c18]/80 backdrop-blur-md border-b px-4 py-3 flex items-center justify-between">
-        <button aria-label="Retour" onClick={onBack} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
+        <button aria-label="Retour" onClick={handleClose} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6 text-gray-900" />
         </button>
         <div className="text-center flex-grow px-4">
@@ -305,7 +331,7 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
           </button>
           <button 
             aria-label="Supprimer l'observation"
-            onClick={() => onDelete(observation.id)}
+            onClick={() => handleDelete(observation.id)}
             className="p-2 text-red-400 hover:bg-red-500/10 rounded-full transition-colors"
           >
             <Trash2 className="w-5 h-5" />
@@ -448,16 +474,112 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
                 </div>
               </div>
 
-              {observation.phenotypicTraits?.diseasesOrDeficiencies && Array.isArray(observation.phenotypicTraits.diseasesOrDeficiencies) && observation.phenotypicTraits.diseasesOrDeficiencies.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="text-xs font-black text-red-400 uppercase tracking-widest">Alertes Sanitaires</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {observation.phenotypicTraits.diseasesOrDeficiencies.map((d, i) => (
-                      <span key={i} className="px-2 py-1 bg-red-500/100/10 text-red-400 text-[10px] font-bold rounded-md border border-red-500/20">
-                        {d}
-                      </span>
-                    ))}
+              {/* Health Alerts & Linked Phytosanitary Knowledge Base */}
+              {((observation.phenotypicTraits?.diseasesOrDeficiencies && observation.phenotypicTraits.diseasesOrDeficiencies.length > 0) || linkedDiseases.length > 0) && (
+                <div className="space-y-3 pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      Alertes Sanitaires & Diagnostics
+                    </h3>
+                    {onOpenDiseaseDatabase && (
+                      <button
+                        onClick={() => onOpenDiseaseDatabase(linkedDiseases[0]?.id)}
+                        className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1"
+                      >
+                        Base maladies
+                        <ExternalLink size={12} />
+                      </button>
+                    )}
                   </div>
+
+                  {observation.phenotypicTraits?.diseasesOrDeficiencies && observation.phenotypicTraits.diseasesOrDeficiencies.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {observation.phenotypicTraits.diseasesOrDeficiencies.map((d, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            const match = findMatchingDiseases(d)[0];
+                            if (match) setSelectedDiseaseModal(match);
+                            else if (onOpenDiseaseDatabase) onOpenDiseaseDatabase();
+                          }}
+                          className="px-2.5 py-1 bg-red-500/15 hover:bg-red-500/25 text-red-300 text-xs font-bold rounded-lg border border-red-500/30 transition-all flex items-center gap-1.5 cursor-pointer text-left"
+                        >
+                          <AlertCircle size={12} className="text-red-400 shrink-0" />
+                          <span>{d}</span>
+                          <ChevronRight size={12} className="text-red-400/60" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Linked Disease Expert Protocols Preview */}
+                  {linkedDiseases.length > 0 && (
+                    <div className="space-y-2.5 mt-3">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Protocoles de traitement recommandés (Base AgriScan) :
+                      </p>
+                      {linkedDiseases.map(disease => (
+                        <div
+                          key={disease.id}
+                          className="p-3.5 bg-gradient-to-br from-emerald-950/40 to-black/50 rounded-xl border border-emerald-500/30 space-y-2.5"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <Leaf size={14} className="text-emerald-400" />
+                                <h4 className="text-xs font-black text-white">{disease.name}</h4>
+                              </div>
+                              <p className="text-[10px] text-emerald-400 italic">{disease.scientificName}</p>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                              {disease.category === 'pest' ? 'Ravageur' : 'Maladie'}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                              <span className="text-[9px] font-bold text-emerald-400 uppercase flex items-center gap-1 mb-1">
+                                <ShieldCheck size={11} /> Traitement Bio
+                              </span>
+                              <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">
+                                {disease.organicTreatments[0]}
+                              </p>
+                            </div>
+                            <div className="p-2 bg-white/5 rounded-lg border border-white/5">
+                              <span className="text-[9px] font-bold text-orange-400 uppercase flex items-center gap-1 mb-1">
+                                <FlaskConical size={11} /> Traitement Chimique
+                              </span>
+                              <p className="text-[11px] text-slate-300 line-clamp-2 leading-tight">
+                                {disease.chemicalTreatments[0]}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDiseaseModal(disease)}
+                              className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 hover:underline cursor-pointer"
+                            >
+                              <span>Voir symptômes, causes & posologie complète</span>
+                              <ChevronRight size={13} />
+                            </button>
+                            {onOpenDiseaseDatabase && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenDiseaseDatabase(disease.id)}
+                                className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1"
+                              >
+                                Ouvrir dans la base
+                                <ExternalLink size={10} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -819,6 +941,152 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
             ))}
           </div>
         </div>
+
+        {/* Selected Disease Expert Advisory Modal */}
+        <AnimatePresence>
+          {selectedDiseaseModal && (
+            <div className="fixed inset-0 z-[7000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className="relative w-full max-w-2xl bg-[#121814] border border-emerald-500/40 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+              >
+                <div className="p-5 bg-[#16201a] border-b border-white/10 flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={selectedDiseaseModal.imageUrl}
+                      alt=""
+                      className="w-14 h-14 rounded-xl object-cover border border-white/10"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        {selectedDiseaseModal.category === 'pest' ? 'Ravageur' : 'Pathogène'}
+                      </span>
+                      <h3 className="text-base font-black text-white">{selectedDiseaseModal.name}</h3>
+                      <p className="text-xs text-emerald-400 italic">{selectedDiseaseModal.scientificName}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedDiseaseModal(null)}
+                    className="p-1.5 bg-white/10 hover:bg-white/20 rounded-full text-slate-300"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Sub-tabs */}
+                <div className="flex bg-black/40 p-1 border-b border-white/5 text-xs font-bold">
+                  <button
+                    onClick={() => setDiseaseTab('symptoms')}
+                    className={`flex-1 py-2 rounded-xl transition-all ${diseaseTab === 'symptoms' ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400'}`}
+                  >
+                    Symptômes & Causes
+                  </button>
+                  <button
+                    onClick={() => setDiseaseTab('organic')}
+                    className={`flex-1 py-2 rounded-xl transition-all ${diseaseTab === 'organic' ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400'}`}
+                  >
+                    Traitement Bio
+                  </button>
+                  <button
+                    onClick={() => setDiseaseTab('chemical')}
+                    className={`flex-1 py-2 rounded-xl transition-all ${diseaseTab === 'chemical' ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400'}`}
+                  >
+                    Traitement Chimique
+                  </button>
+                  <button
+                    onClick={() => setDiseaseTab('prevention')}
+                    className={`flex-1 py-2 rounded-xl transition-all ${diseaseTab === 'prevention' ? 'bg-emerald-500 text-slate-950 font-black' : 'text-slate-400'}`}
+                  >
+                    Prévention
+                  </button>
+                </div>
+
+                {/* Body */}
+                <div className="p-5 overflow-y-auto space-y-4 text-xs text-slate-200">
+                  {diseaseTab === 'symptoms' && (
+                    <div className="space-y-3">
+                      <div className="p-3.5 bg-white/5 rounded-xl border border-white/10">
+                        <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-wider mb-1">Symptômes</h4>
+                        <p className="text-slate-300 leading-relaxed">{selectedDiseaseModal.symptoms}</p>
+                      </div>
+                      <div className="p-3.5 bg-white/5 rounded-xl border border-white/10">
+                        <h4 className="text-[10px] font-black text-amber-400 uppercase tracking-wider mb-1">Causes & Climat</h4>
+                        <p className="text-slate-300 leading-relaxed">{selectedDiseaseModal.causes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {diseaseTab === 'organic' && (
+                    <div className="space-y-2">
+                      <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-300 font-bold mb-2">
+                        Recommandations biologiques et biocontrôle homologuées :
+                      </div>
+                      {selectedDiseaseModal.organicTreatments.map((t, idx) => (
+                        <div key={idx} className="p-3 bg-white/5 rounded-xl border border-white/10 flex items-start gap-2.5">
+                          <CheckCircle2 size={16} className="text-emerald-400 shrink-0 mt-0.5" />
+                          <span className="leading-relaxed">{t}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {diseaseTab === 'chemical' && (
+                    <div className="space-y-2">
+                      <div className="p-2.5 bg-orange-500/10 rounded-xl border border-orange-500/20 text-orange-300 font-bold mb-2">
+                        Traitements conventionnels de synthèse & précautions :
+                      </div>
+                      {selectedDiseaseModal.chemicalTreatments.map((t, idx) => (
+                        <div key={idx} className="p-3 bg-white/5 rounded-xl border border-white/10 flex items-start gap-2.5">
+                          <FlaskConical size={16} className="text-orange-400 shrink-0 mt-0.5" />
+                          <span className="leading-relaxed">{t}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {diseaseTab === 'prevention' && (
+                    <div className="space-y-2">
+                      <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20 text-blue-300 font-bold mb-2">
+                        Bonnes pratiques culturales prophylactiques :
+                      </div>
+                      {selectedDiseaseModal.preventionMethods.map((m, idx) => (
+                        <div key={idx} className="p-3 bg-white/5 rounded-xl border border-white/10 flex items-start gap-2.5">
+                          <ShieldCheck size={16} className="text-blue-400 shrink-0 mt-0.5" />
+                          <span className="leading-relaxed">{m}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 bg-[#16201a] border-t border-white/10 flex justify-between items-center">
+                  <button
+                    onClick={() => setSelectedDiseaseModal(null)}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold text-slate-300"
+                  >
+                    Fermer
+                  </button>
+                  {onOpenDiseaseDatabase && (
+                    <button
+                      onClick={() => {
+                        const id = selectedDiseaseModal.id;
+                        setSelectedDiseaseModal(null);
+                        onOpenDiseaseDatabase(id);
+                      }}
+                      className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5"
+                    >
+                      <span>Consulter la fiche complète</span>
+                      <ExternalLink size={14} />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

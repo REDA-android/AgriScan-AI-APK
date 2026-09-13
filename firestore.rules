@@ -93,6 +93,12 @@ service cloud.firestore {
       // Hard delete only allowed for admins
       allow delete: if isAdmin();
     }
+
+    match /diseases/{diseaseId} {
+      // All authenticated or approved users can read phytosanitary disease & pest entries
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }
 

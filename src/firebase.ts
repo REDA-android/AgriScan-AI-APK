@@ -2,6 +2,7 @@ import { initializeApp, getApps } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
+  FacebookAuthProvider,
   signInWithPopup, 
   signInWithRedirect,
   getRedirectResult,
@@ -77,6 +78,7 @@ try {
 export const storage = storageInstance;
 
 export const googleProvider = new GoogleAuthProvider();
+export const facebookProvider = new FacebookAuthProvider();
 
 import { uploadToCloudinary } from './services/cloudinaryService';
 
@@ -201,6 +203,63 @@ export const signInWithGoogle = async (lang?: string) => {
       console.error(msg);
       if (!isNative) alert(msg);
     }
+    throw error;
+  } finally {
+    isSigningIn = false;
+  }
+};
+
+export const signInWithFacebook = async (lang?: string) => {
+  if (isSigningIn) {
+    console.log("Authentification en cours, veuillez patienter...");
+    return null;
+  }
+
+  isSigningIn = true;
+  try {
+    facebookProvider.setCustomParameters({
+      display: 'popup'
+    });
+
+    try {
+      const result = await signInWithPopup(auth, facebookProvider);
+      return result.user;
+    } catch (popupError: any) {
+      console.log("Résultat Popup Facebook Auth:", popupError.code);
+      if (popupError.code === 'auth/popup-blocked') {
+        window.dispatchEvent(new CustomEvent('app-notify', { 
+          detail: { message: "La fenêtre de connexion Facebook a été bloquée. Veuillez autoriser les fenêtres pop-up.", type: 'error' } 
+        }));
+        throw popupError;
+      }
+      if (popupError.code === 'auth/popup-closed-by-user' || popupError.code === 'auth/cancelled-popup-request') {
+        console.log("Connexion Facebook annulée par l'utilisateur.");
+        return null;
+      }
+      if (popupError.code === 'auth/account-exists-with-different-credential') {
+        window.dispatchEvent(new CustomEvent('app-notify', { 
+          detail: { message: "Un compte existe déjà avec cette adresse email via une autre méthode (Google ou Mot de passe).", type: 'error' } 
+        }));
+        throw popupError;
+      }
+      if (popupError.code === 'auth/unauthorized-domain') {
+        console.error("Domaine non autorisé pour l'authentification Facebook.");
+        throw popupError;
+      }
+
+      try {
+        await signInWithRedirect(auth, facebookProvider);
+        return null;
+      } catch (redirectErr) {
+        console.error("Erreur fallback redirect Facebook:", redirectErr);
+        throw redirectErr;
+      }
+    }
+  } catch (error: any) {
+    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      return null;
+    }
+    console.error("Détails de l'erreur Facebook Auth:", error);
     throw error;
   } finally {
     isSigningIn = false;

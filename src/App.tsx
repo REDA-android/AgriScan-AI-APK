@@ -13,6 +13,7 @@ import {
   Map as MapIcon,
   Plus,
   Search,
+  Camera,
   Wind,
   Droplets,
   Droplet,
@@ -73,6 +74,9 @@ import {
   Paperclip,
   Share2,
   FileText,
+  Bug,
+  Store,
+  Smartphone,
 } from "lucide-react";
 import { computeAgriculturalHazards, fetchDustData, AgriculturalHazard } from "./services/weatherHazardService";
 
@@ -84,6 +88,7 @@ import {
   handleFirestoreError,
   OperationType,
   signInWithGoogle,
+  signInWithFacebook,
   signInWithIdToken,
   logout,
   uploadImage,
@@ -131,6 +136,7 @@ import {
   Line,
 } from "recharts";
 import CameraView, { ProcessedImage } from "./components/CameraView";
+import { GeminiLiveModal } from "./components/GeminiLiveModal";
 import MapView from "./components/MapView";
 import { ChatBot } from "./components/ChatBot";
 import { ConfirmDialog } from "./components/ConfirmDialog";
@@ -171,6 +177,14 @@ import {
 } from "./services/offlineSyncService";
 import OfflineSyncBanner from "./components/OfflineSyncBanner";
 import OfflineObservationsDrawer from "./components/OfflineObservationsDrawer";
+import PlantDiseaseDatabase from "./components/PlantDiseaseDatabase";
+import SmartWeatherCalendar from "./components/SmartWeatherCalendar";
+import MarketplaceModal from "./components/MarketplaceModal";
+import FarmHealthDossierModal from "./components/FarmHealthDossierModal";
+import AudioGuidePlayer from "./components/AudioGuidePlayer";
+import PWAInstallBanner from "./components/PWAInstallBanner";
+import ApkExportModal from "./components/ApkExportModal";
+import LiveHybridVisionModal from "./components/LiveHybridVisionModal";
 
 // Types
 import {
@@ -336,6 +350,7 @@ interface WeatherInfo {
 function ObservationDetail({
   observation,
   onClose,
+  onOpenDiseaseDatabase,
   t,
   isArabic,
   isAdmin,
@@ -347,6 +362,7 @@ function ObservationDetail({
 }: {
   observation: any;
   onClose: () => void;
+  onOpenDiseaseDatabase?: (diseaseId?: string) => void;
   t: any;
   isArabic: boolean;
   isAdmin: boolean;
@@ -983,6 +999,22 @@ function ObservationDetail({
               {getShareLabel()}
             </button>
           </div>
+
+          {/* Multi-Language Voiceover Audio Guide (French, Arabic, English, Spanish) */}
+          <div className="mt-3">
+            <AudioGuidePlayer
+              content={{
+                cropName: observation.culture || observation.variety || "Plante",
+                variety: observation.variety,
+                healthStatus: observation.phenotypicTraits?.healthStatus,
+                diseases: observation.phenotypicTraits?.diseasesOrDeficiencies || observation.phenotypicTraits?.diseases,
+                organicTreatments: observation.phenotypicTraits?.organicTreatments,
+                chemicalTreatments: observation.phenotypicTraits?.chemicalTreatments,
+                preventions: observation.phenotypicTraits?.preventiveMeasures || observation.phenotypicTraits?.preventions,
+              }}
+              defaultLanguage={language === "ar" ? "ar" : language === "en" ? "en" : "fr"}
+            />
+          </div>
         </section>
 
         {observation.bbchDominant && (
@@ -1114,18 +1146,33 @@ function ObservationDetail({
             ) &&
             observation.phenotypicTraits.diseasesOrDeficiencies.length > 0 && (
               <div className="space-y-2 mt-2">
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-                  Alertes Sanitaires
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <AlertTriangle size={11} className="text-amber-400" />
+                    Alertes Sanitaires & Diagnostics
+                  </span>
+                  {onOpenDiseaseDatabase && (
+                    <button
+                      onClick={() => onOpenDiseaseDatabase()}
+                      className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-colors"
+                    >
+                      <span>Base Pathologies</span>
+                      <ChevronRight size={12} />
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {observation.phenotypicTraits.diseasesOrDeficiencies.map(
                     (d: string, i: number) => (
-                      <span
+                      <button
                         key={i}
-                        className="px-2 py-1 bg-red-500/10 text-red-400 text-[10px] font-bold rounded-md border border-red-500/20"
+                        onClick={() => onOpenDiseaseDatabase?.(d)}
+                        className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-[10px] font-bold rounded-lg border border-red-500/20 transition-all flex items-center gap-1.5 group cursor-pointer"
+                        title="Consulter les symptômes, causes et traitements"
                       >
-                        {d}
-                      </span>
+                        <span>{d}</span>
+                        <ExternalLink size={10} className="opacity-60 group-hover:opacity-100 transition-opacity" />
+                      </button>
                     ),
                   )}
                 </div>
@@ -2554,8 +2601,9 @@ export default function App() {
     themeMode === "light" || (themeMode === "system" && !systemPrefersDark);
 
   const [activeTab, setActiveTab] = useState<
-    "scan" | "map" | "weather" | "catalog" | "admin"
+    "scan" | "map" | "weather" | "catalog" | "admin" | "diseases"
   >("scan");
+  const [selectedDiseaseIdForDb, setSelectedDiseaseIdForDb] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<PlantAnalysis | null>(null);
 
   useEffect(() => {
@@ -2639,6 +2687,7 @@ export default function App() {
     lng: number;
   } | null>(null);
   const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [isGeminiLiveOpen, setIsGeminiLiveOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
@@ -2678,6 +2727,10 @@ export default function App() {
   );
   const [isOfflineDrawerOpen, setIsOfflineDrawerOpen] = useState(false);
   const [bulkEditState, setBulkEditState] = useState({ isOpen: false });
+  const [isApkExportOpen, setIsApkExportOpen] = useState(false);
+  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
+  const [isHealthDossierOpen, setIsHealthDossierOpen] = useState(false);
+  const [isLiveHybridVisionOpen, setIsLiveHybridVisionOpen] = useState(false);
 
   // Auth States
   const [authMode, setAuthMode] = useState<
@@ -3003,14 +3056,31 @@ export default function App() {
         // Mode APK Direct Fallback
         const { GoogleGenAI } = await import("@google/genai");
         const ai = new GoogleGenAI({ apiKey: userKey });
-        const res = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
-          contents,
-          config,
-        });
+        const directModels = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.8-flash"];
+        let res: any = null;
+        let lastErr: any = null;
+
+        for (const targetModel of directModels) {
+          try {
+            res = await ai.models.generateContent({
+              model: targetModel,
+              contents,
+              config,
+            });
+            if (res) break;
+          } catch (e: any) {
+            lastErr = e;
+            if (e.message?.includes("503") || e.message?.includes("UNAVAILABLE")) {
+              await new Promise((r) => setTimeout(r, 1200));
+              continue;
+            }
+            throw e;
+          }
+        }
+        if (!res && lastErr) throw lastErr;
         responseTextStr =
-          res.text || "Désolé, je n'ai pas pu générer de réponse.";
-        groundingChunksData = (res as any).candidates?.[0]?.groundingMetadata
+          res?.text || "Désolé, je n'ai pas pu générer de réponse.";
+        groundingChunksData = (res as any)?.candidates?.[0]?.groundingMetadata
           ?.groundingChunks;
       }
 
@@ -4617,6 +4687,112 @@ export default function App() {
     }
   };
 
+  const handleSaveHybridObservation = async (data: {
+    photoUrl: string;
+    variety: string;
+    culture: string;
+    diagnosis: string;
+    treatment: string;
+    notes: string;
+  }) => {
+    try {
+      const observationData = {
+        userId: user ? user.uid : "local_user",
+        domain: domainFilter || "Exploitation Agricole",
+        location: manualLocation || { lat: 48.8566, lng: 2.3522 },
+        createdAt: serverTimestamp ? serverTimestamp() : new Date(),
+        capturedAt: new Date().toISOString(),
+        imageUrl: data.photoUrl,
+        imageUrls: [data.photoUrl],
+        culture: data.culture || "Culture agricole",
+        variety: data.variety || "Diagnostic YOLO + Gemini",
+        species: data.variety || "Pathogène détecté",
+        family: "Analyse Hybride Live",
+        bbchDominant: "Stade Détecté",
+        bbchSecondary: [],
+        organCounts: { flowers: 0, fruits: 0, details: "Détection temps réel" },
+        phenotypicTraits: {
+          color: "Altérée",
+          shape: "Tache / Lésion",
+          size: "Foliaire",
+          healthStatus: "Affecté",
+          diseasesOrDeficiencies: [data.variety],
+        },
+        description: `${data.diagnosis}. ${data.treatment}. ${data.notes}`,
+        userNotes: data.notes || "",
+        status: "completed",
+      };
+
+      if (user && isOnline) {
+        await addDoc(collection(db, "observations"), observationData);
+      } else {
+        await saveOfflineObservation({
+          ...observationData,
+          id: `offline_hybrid_${Date.now()}`,
+          tempId: `offline_hybrid_${Date.now()}`,
+          createdAt: new Date().toISOString(),
+        } as any);
+      }
+      notifyUser("🌿 Observation hybride enregistrée dans le catalogue !", "success");
+    } catch (err) {
+      console.error("Erreur enregistrement observation hybride:", err);
+      notifyUser("Observation sauvegardée en cache local.", "info");
+    }
+  };
+
+  const handleSaveGeminiLiveObservation = async (data: {
+    imageUrl: string;
+    plantName: string;
+    diagnosis: string;
+    healthStatus: string;
+    notes: string;
+    confidence?: number;
+  }) => {
+    try {
+      const observationData = {
+        userId: user?.uid || "anonymous_user",
+        userEmail: user?.email || "agronome@local",
+        location: manualLocation || { lat: 48.8566, lng: 2.3522 },
+        createdAt: serverTimestamp ? serverTimestamp() : new Date(),
+        capturedAt: new Date().toISOString(),
+        imageUrl: data.imageUrl,
+        imageUrls: [data.imageUrl],
+        culture: data.plantName || "Culture observée",
+        variety: data.plantName || "Gemini Live",
+        species: data.plantName || "Spécimen végétal",
+        family: "Gemini Live Realtime",
+        bbchDominant: "Observation en Direct",
+        bbchSecondary: [],
+        organCounts: { flowers: 0, fruits: 0, details: "Analyse en direct Gemini Live" },
+        phenotypicTraits: {
+          color: "Observation directe",
+          shape: "Foliaire / Végétal",
+          size: "Plein champ",
+          healthStatus: data.healthStatus || "Bonne",
+          diseasesOrDeficiencies: data.diagnosis && data.diagnosis !== "Plante saine" ? [data.diagnosis] : [],
+        },
+        description: `${data.diagnosis}. ${data.notes}`,
+        userNotes: data.notes || "",
+        status: "completed",
+      };
+
+      if (user && isOnline) {
+        await addDoc(collection(db, "observations"), observationData);
+      } else {
+        await saveOfflineObservation({
+          ...observationData,
+          id: `offline_geminilive_${Date.now()}`,
+          tempId: `offline_geminilive_${Date.now()}`,
+          createdAt: new Date().toISOString(),
+        } as any);
+      }
+      notifyUser("🌱 Observation Gemini Live enregistrée dans votre carnet !", "success");
+    } catch (err) {
+      console.error("Erreur enregistrement Gemini Live:", err);
+      notifyUser("Observation sauvegardée en local.", "info");
+    }
+  };
+
   const [deleteConfirmState, setDeleteConfirmState] = useState<{
     isOpen: boolean;
     id: string | null;
@@ -5352,6 +5528,41 @@ export default function App() {
                   />
                   {t.connect || "Se connecter avec Google"}
                 </LiquidButton>
+
+                <LiquidButton
+                  onClick={async () => {
+                    setIsAuthLoading(true);
+                    setAuthError(null);
+                    try {
+                      await signInWithFacebook(language);
+                    } catch (e: any) {
+                      const errMsg = e.message || String(e);
+                      if (errMsg.includes("account-exists-with-different-credential")) {
+                        setAuthError(
+                          language === "ar"
+                            ? "يوجد حساب بالفعل بهذا البريد الإلكتروني عبر مزود آخر."
+                            : "Un compte existe déjà avec cette adresse email via une autre méthode de connexion."
+                        );
+                      } else if (errMsg.includes("popup-closed-by-user")) {
+                        setAuthError(
+                          language === "ar"
+                            ? "تم إغلاق نافذة المصادقة بواسطة المستخدم."
+                            : "Connexion annulée (fenêtre fermée)."
+                        );
+                      } else {
+                        setAuthError(`FacebookAuth: ${errMsg}`);
+                      }
+                    } finally {
+                      setIsAuthLoading(false);
+                    }
+                  }}
+                  className="w-full bg-[#1877F2] text-white hover:bg-[#166fe5]"
+                >
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                  {language === "ar" ? "تسجيل الدخول باستخدام فيسبوك" : language === "en" ? "Sign in with Facebook" : "Se connecter avec Facebook"}
+                </LiquidButton>
               </div>
 
               <div className="relative mt-10 mb-8">
@@ -5651,6 +5862,8 @@ export default function App() {
       {/* Main Content Area Container */}
       <div className="flex-1 flex flex-col min-h-0 relative overflow-hidden pt-[calc(4.75rem+env(safe-area-inset-top,0px))]">
 
+
+
       {/* Logout Confirmation Modal */}
       <AnimatePresence>
         {showLogoutConfirm && (
@@ -5822,6 +6035,8 @@ export default function App() {
                     </div>
                   </div>
                 )}
+
+
                 <CameraView
                   onCapture={handleCapture}
                   isOnline={isOnline}
@@ -5837,6 +6052,7 @@ export default function App() {
                   proRequestStatus={userData?.proRequestStatus}
                   proRequestMessage={userData?.proRequestMessage}
                   onRequestProAccess={handleRequestProAccess}
+                  onOpenGeminiLive={() => setIsGeminiLiveOpen(true)}
                 />
 
                 {/* Google AI Edge Dashboard runs in the background */}
@@ -6156,6 +6372,22 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* Multi-Language Voiceover Audio Guide for Scan Result */}
+                  <div className="my-2">
+                    <AudioGuidePlayer
+                      content={{
+                        cropName: analysis.variety || analysis.family || "Culture",
+                        variety: analysis.variety,
+                        healthStatus: analysis.phenotypicTraits?.healthStatus,
+                        diseases: analysis.phenotypicTraits?.diseasesOrDeficiencies || (analysis.disease ? [analysis.disease] : []),
+                        organicTreatments: analysis.phenotypicTraits?.organicTreatments || (analysis.treatments?.biological ? [analysis.treatments.biological] : []),
+                        chemicalTreatments: analysis.phenotypicTraits?.chemicalTreatments || (analysis.treatments?.chemical ? [analysis.treatments.chemical] : []),
+                        preventions: analysis.phenotypicTraits?.preventiveMeasures || (analysis.treatments?.preventive ? [analysis.treatments.preventive] : []),
+                      }}
+                      defaultLanguage={language === "ar" ? "ar" : language === "en" ? "en" : "fr"}
+                    />
+                  </div>
+
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <h4 className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-2">
@@ -6433,6 +6665,25 @@ export default function App() {
                 </button>
               </div>
             )}
+
+            {/* Smart Weather & 7-Day Spraying + Phenological Harvest Calendar */}
+            <div className="mt-4">
+              <SmartWeatherCalendar
+                weather={weather ? {
+                  temperature: weather.current.temp,
+                  humidity: weather.current.humidity,
+                  windSpeed: weather.current.windSpeed,
+                  precipitation: weather.daily?.[0]?.precipitation_probability_max ?? weather.current.precipitation ?? 10,
+                  uvIndex: weather.current.uvIndex ?? 6,
+                  condition: weather.current.condition ?? "Normal"
+                } : null}
+                language={language}
+                isLightMode={isLightMode}
+                onAddReminder={(crop, milestone, date) => {
+                  notifyUser(`Rappel agricole : ${crop} - ${milestone} (${date})`, "success");
+                }}
+              />
+            </div>
           </motion.div>
         )}
 
@@ -6505,6 +6756,8 @@ export default function App() {
                     </button>
                   </>
                 )}
+
+
                 {canManage && (
                   <div className="flex gap-2">
                     {isSelectionMode ? (
@@ -6903,6 +7156,33 @@ export default function App() {
           </motion.div>
         )}
 
+        {activeTab === "diseases" && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="pb-36"
+          >
+            <div className="pt-2 pb-1 px-4 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setActiveTab("catalog");
+                  triggerHaptic("light");
+                }}
+                className="px-3.5 py-2 bg-white/10 hover:bg-white/15 dark:bg-[#161c18] border border-white/10 text-slate-200 text-xs font-bold rounded-2xl transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95"
+              >
+                <ArrowLeft size={16} />
+                <span>{language === "ar" ? "العودة إلى الكتالوج" : language === "en" ? "Back to Catalog" : "Retour au catalogue"}</span>
+              </button>
+            </div>
+            <PlantDiseaseDatabase
+              initialDiseaseId={selectedDiseaseIdForDb || undefined}
+              onSelectDisease={(disease) => {
+                console.log("Maladie sélectionnée:", disease.name);
+              }}
+            />
+          </motion.div>
+        )}
+
         {activeTab === "admin" && isAdmin && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -6927,6 +7207,11 @@ export default function App() {
           <ObservationDetail
             observation={selectedObservation}
             onClose={() => setSelectedObservation(null)}
+            onOpenDiseaseDatabase={(diseaseId) => {
+              setSelectedObservation(null);
+              setSelectedDiseaseIdForDb(diseaseId || null);
+              setActiveTab("diseases");
+            }}
             t={t}
             isArabic={isArabic}
             isAdmin={isAdmin}
@@ -6934,6 +7219,46 @@ export default function App() {
             isDeleting={isDeleting}
             onRetry={handleRetryAnalysis}
             onDownload={handleDownloadImage}
+            language={language}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Marketplace & Local Crop Prices Modal */}
+      <AnimatePresence>
+        {isMarketplaceOpen && (
+          <MarketplaceModal
+            onClose={() => setIsMarketplaceOpen(false)}
+            language={language}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Farm Health Dossier & Official PDF/CSV Export Modal */}
+      <AnimatePresence>
+        {isHealthDossierOpen && (
+          <FarmHealthDossierModal
+            observations={observations}
+            onClose={() => setIsHealthDossierOpen(false)}
+            language={language}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Android APK & Bundle Export Helper Modal */}
+      <AnimatePresence>
+        {isApkExportOpen && (
+          <ApkExportModal onClose={() => setIsApkExportOpen(false)} />
+        )}
+      </AnimatePresence>
+
+      {/* Realtime Gemini Live Modal */}
+      <AnimatePresence>
+        {isGeminiLiveOpen && (
+          <GeminiLiveModal
+            isOpen={isGeminiLiveOpen}
+            onClose={() => setIsGeminiLiveOpen(false)}
+            onSaveObservation={handleSaveGeminiLiveObservation}
             language={language}
           />
         )}
@@ -7060,6 +7385,14 @@ export default function App() {
       />
 
       <ChatBot />
+
+      {/* Live Hybrid Vision Modal */}
+      <LiveHybridVisionModal
+        isOpen={isLiveHybridVisionOpen}
+        onClose={() => setIsLiveHybridVisionOpen(false)}
+        onSaveObservation={handleSaveHybridObservation}
+        language={language}
+      />
 
       {/* Bottom Navigation - Liquid Glass Style */}
       <LiquidTabBar

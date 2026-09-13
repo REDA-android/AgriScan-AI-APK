@@ -3,8 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Agri Scan AI</title>
+    <title>Remix AgriScan AI to APK</title>
+    <meta name="description" content="An AI-powered agricultural tool with Gemini Live real-time camera and voice analysis for scanning crops, detecting diseases, and providing instant plant health diagnostics." />
+    <meta name="theme-color" content="#064e3b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AgriScan AI" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
     <script>
+      (function() {
+        var origError = console.error;
+        console.error = function() {
+          var firstArg = arguments[0];
+          if (typeof firstArg === 'string' && (firstArg.includes('[vite]') || firstArg.includes('WebSocket') || firstArg.includes('ws://') || firstArg.includes('wss://'))) {
+            return;
+          }
+          return origError.apply(console, arguments);
+        };
+        var origWarn = console.warn;
+        console.warn = function() {
+          var firstArg = arguments[0];
+          if (typeof firstArg === 'string' && (firstArg.includes('[vite]') || firstArg.includes('WebSocket'))) {
+            return;
+          }
+          return origWarn.apply(console, arguments);
+        };
+      })();
       window.onerror = function(message, source, lineno, colno, error) {
         var msg = String(message);
         if (msg.includes('WebSocket') || msg.includes('vite') || msg.includes('HMR')) return;
