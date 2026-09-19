@@ -1,0 +1,4 @@
+## 2024-05-28 - Unescaped `innerHTML` in Global Error Handlers
+**Vulnerability:** The global error handlers `window.onerror` and `unhandledrejection` in `src/main.tsx` used `.innerHTML` with string concatenation of error details (e.g. `message`, `source`, `error.stack`). This could lead to a DOM-based Cross-Site Scripting (XSS) vulnerability if an error string contains malicious payload.
+**Learning:** Even internal or debug-focused error handlers attached directly to the `window` object can be a vector for XSS if they reflect user-controllable input (like network request failures, query parameters triggering errors, etc.) directly into the DOM.
+**Prevention:** Always use safe DOM APIs like `document.createElement()` along with `.textContent` or `.innerText` to render raw text dynamically, avoiding `innerHTML` entirely unless input is sanitized by a robust library.
