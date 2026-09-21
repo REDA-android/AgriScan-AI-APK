@@ -482,7 +482,7 @@ app.get(["/api/weather/geocode", "/weather/geocode"], async (req, res) => {
     res.json(data);
   } catch (error: any) {
     console.error("[Weather] Geocode proxy error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
@@ -668,7 +668,7 @@ app.get(["/api/weather/forecast", "/weather/forecast"], async (req, res) => {
     res.json(data);
   } catch (error: any) {
     console.error("[Weather] Weather proxy error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
