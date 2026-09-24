@@ -334,7 +334,7 @@ export const PlantDiseaseDatabase: React.FC<PlantDiseaseDatabaseProps> = ({
                   {/* Card Header with Image Thumbnail & Badges */}
                   <div className="flex items-start gap-3">
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-white/10 bg-black/40">
-                      <img
+                      <img loading="lazy"
                         src={issue.imageUrl}
                         alt={issue.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -423,7 +423,7 @@ export const PlantDiseaseDatabase: React.FC<PlantDiseaseDatabaseProps> = ({
 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border-2 border-emerald-500/40 shadow-lg">
-                    <img
+                    <img loading="lazy"
                       src={selectedIssue.imageUrl}
                       alt={selectedIssue.name}
                       className="w-full h-full object-cover"
@@ -657,7 +657,7 @@ export const PlantDiseaseDatabase: React.FC<PlantDiseaseDatabaseProps> = ({
                             }}
                             className="p-2.5 bg-black/40 hover:bg-black/60 rounded-xl border border-white/10 cursor-pointer flex items-center gap-3 transition-colors"
                           >
-                            <img
+                            <img loading="lazy"
                               src={obs.imageUrl}
                               alt=""
                               className="w-10 h-10 rounded-lg object-cover"
