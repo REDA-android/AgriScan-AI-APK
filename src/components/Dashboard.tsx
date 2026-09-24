@@ -206,7 +206,7 @@ const Dashboard: React.FC<DashboardProps> = ({
               onClick={onViewCatalog}
               className="flex items-center gap-3 p-3 bg-white/5 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-lg cursor-pointer hover:bg-white/10 transition-all"
             >
-              <img 
+              <img loading="lazy"
                 src={obs.imageUrl} 
                 className="w-12 h-12 rounded-xl object-cover bg-white/5 border border-white/10" 
                 referrerPolicy="no-referrer"

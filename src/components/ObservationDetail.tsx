@@ -598,7 +598,7 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
             </p>
             {qrCodeDataUrl ? (
               <div className="p-2 bg-[#161c18] border border-gray-100 rounded-xl shadow-inner inline-block">
-                <img src={qrCodeDataUrl} alt="Code QR de l'observation" className="w-36 h-36" />
+                <img loading="lazy" src={qrCodeDataUrl} alt="Code QR de l'observation" className="w-36 h-36" />
               </div>
             ) : (
               <div className="w-36 h-36 bg-gray-50 animate-pulse rounded-xl border border-dashed flex items-center justify-center text-[10px] text-gray-400">
@@ -954,7 +954,7 @@ const ObservationDetail: React.FC<ObservationDetailProps> = ({
               >
                 <div className="p-5 bg-[#16201a] border-b border-white/10 flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <img
+                    <img loading="lazy"
                       src={selectedDiseaseModal.imageUrl}
                       alt=""
                       className="w-14 h-14 rounded-xl object-cover border border-white/10"

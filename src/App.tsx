@@ -930,7 +930,7 @@ function ObservationDetail({
                   onClick={() => setCurrentIndex(i)}
                   className={`w-20 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all ${currentIndex === i ? "border-emerald-500 scale-95 shadow-inner" : "border-white/10"}`}
                 >
-                  <img
+                  <img loading="lazy"
                     src={url}
                     alt=""
                     className="w-full h-full object-cover"
@@ -1617,7 +1617,7 @@ function AdminView({
               className="bg-[#161c18] rounded-2xl border border-white/5 overflow-hidden shadow-none cursor-pointer hover:border-emerald-500/30 transition-colors group"
             >
               <div className="relative">
-                <img
+                <img loading="lazy"
                   src={obs.imageUrl}
                   alt=""
                   className="w-full aspect-square object-cover"
@@ -6069,7 +6069,7 @@ export default function App() {
                 {(analysis as any).imageUrls &&
                   (analysis as any).imageUrls.length > 0 && (
                     <div className="relative aspect-video bg-[#0d120f] group">
-                      <img
+                      <img loading="lazy"
                         src={(analysis as any).imageUrls[currentImageIndex]}
                         alt=""
                         className="w-full h-full object-contain"
@@ -6465,7 +6465,7 @@ export default function App() {
                       className="relative cursor-pointer"
                       onClick={() => setSelectedObservation(obs)}
                     >
-                      <img
+                      <img loading="lazy"
                         src={obs.imageUrl}
                         alt=""
                         className="w-16 h-16 rounded-lg object-cover"
@@ -7038,7 +7038,7 @@ export default function App() {
                         setSelectedObservation(obs);
                       }}
                     >
-                      <img
+                      <img loading="lazy"
                         src={obs.imageUrl}
                         alt=""
                         className="w-full aspect-square object-cover"
