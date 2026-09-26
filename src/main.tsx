@@ -30,11 +30,19 @@ window.onerror = function(message, source, lineno, colno, error) {
   errorDiv.style.zIndex = '999999';
   errorDiv.style.padding = '20px';
   errorDiv.style.overflow = 'auto';
-  errorDiv.innerHTML = '<h3>App Crash</h3>' + 
-      '<p>Message: ' + message + '</p>' +
-      '<p>Source: ' + source + ':' + lineno + ':' + colno + '</p>' +
-      '<pre>' + (error && error.stack ? error.stack : '') + '</pre>';
+
+  const title = document.createElement('h3');
+  title.textContent = 'App Crash';
+  errorDiv.appendChild(title);
+
+  const msgP = document.createElement('p');
+  msgP.textContent = 'An unexpected error occurred. Please refresh the page.';
+  errorDiv.appendChild(msgP);
+
   document.body.appendChild(errorDiv);
+
+  // Log actual error details securely without exposing to UI
+  console.error("App Crash:", { message, source, lineno, colno, error });
 };
 
 // Also catch unhandled promise rejections (ignoring benign Vite/WebSocket errors)
@@ -63,10 +71,19 @@ window.addEventListener('unhandledrejection', function(event) {
   errorDiv.style.zIndex = '999999';
   errorDiv.style.padding = '20px';
   errorDiv.style.border = '2px solid red';
-  errorDiv.innerHTML = '<h3>Unhandled Promise Rejection</h3>' + 
-      '<p>Reason: ' + event.reason + '</p>' +
-      '<pre>' + (event.reason && event.reason.stack ? event.reason.stack : '') + '</pre>';
+
+  const title = document.createElement('h3');
+  title.textContent = 'Unhandled Promise Rejection';
+  errorDiv.appendChild(title);
+
+  const msgP = document.createElement('p');
+  msgP.textContent = 'An unexpected error occurred. Please refresh the page.';
+  errorDiv.appendChild(msgP);
+
   document.body.appendChild(errorDiv);
+
+  // Log actual error details securely without exposing to UI
+  console.error("Unhandled Promise Rejection:", event.reason);
 });
 
 createRoot(document.getElementById('root')!).render(
