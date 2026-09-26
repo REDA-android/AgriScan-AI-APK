@@ -1,0 +1,4 @@
+## 2024-05-24 - Custom Error Handler XSS & Info Leak
+**Vulnerability:** Global error handlers (`window.onerror`, `unhandledrejection`) in `src/main.tsx` injected unvalidated error messages and stack traces into the DOM via `.innerHTML`. This exposed the app to DOM-based XSS if user input ever made it into an error object, and it leaked internal app details via stack traces to the end user.
+**Learning:** Custom "debugging" overlays in production builds shouldn't expose raw stack traces or use `.innerHTML` because they can inadvertently introduce XSS and expose sensitive application logic details.
+**Prevention:** Always use secure DOM methods like `.textContent` when programmatically creating error overlays, and never display stack traces in the UI. Log sensitive error details to `console.error` or a secure logging service instead.
