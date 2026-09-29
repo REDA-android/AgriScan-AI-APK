@@ -422,7 +422,7 @@ app.get(["/api/weather/geocode", "/weather/geocode"], async (req, res) => {
       console.log("[Weather] Attemping fallback geocoding...");
       if (process.env.OPENWEATHERMAP_API_KEY) {
         try {
-          const owmGeoUrl = `http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(name as string)}&limit=1&appid=${process.env.OPENWEATHERMAP_API_KEY}`;
+          const owmGeoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(name as string)}&limit=1&appid=${process.env.OPENWEATHERMAP_API_KEY}`;
           const owmRes = await fetch(owmGeoUrl);
           if (owmRes.ok) {
             const owmData = await owmRes.json();
