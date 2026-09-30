@@ -9,6 +9,13 @@ const app = express();
 app.use((req: any, res: any, next: any) => {
   res.setHeader("X-Server-Reached", "true");
   res.setHeader("X-Debug-Req-URL", req.url || "none");
+
+  // Security Headers
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+
   console.log(`[Server] ${req.method} ${req.url}`);
   next();
 });
@@ -360,6 +367,10 @@ app.post(["/api/gemini/analyze", "/gemini/analyze"], async (req, res) => {
 
 app.post(["/api/gemini/chat", "/gemini/chat"], async (req, res) => {
   const { message, history, userKey } = req.body;
+
+  if (message && message.length > 5000) {
+    return res.status(400).json({ error: "Le message est trop long. La limite est de 5000 caractères." });
+  }
 
   const apiKey = userKey || process.env.GEMINI_API_KEY;
   if (
