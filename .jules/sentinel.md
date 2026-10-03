@@ -1,0 +1,4 @@
+## 2024-05-15 - DOM-based XSS in Global Error Handlers
+**Vulnerability:** Global error handlers (`window.onerror`, `unhandledrejection`) in `src/main.tsx` and `index.html` were using `innerHTML` to concatenate and display unsanitized error messages, source URLs, and stack traces directly into the DOM.
+**Learning:** Even internal error states can be a vector for Cross-Site Scripting (XSS) if an attacker can manipulate the input that throws the error (e.g., a malicious URL parameter causing an error). The assumption that "error messages are safe" is incorrect and can lead to DOM-based XSS vulnerabilities.
+**Prevention:** Never use `innerHTML` when rendering potentially attacker-controlled strings, including error messages and stack traces. Always prefer safe DOM APIs like `document.createElement`, `innerText`, or `textContent` to construct DOM nodes safely, ensuring any HTML tags within the error strings are treated as text and not executed.
