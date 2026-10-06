@@ -1,0 +1,4 @@
+## 2026-10-06 - DOM-Based XSS in Error Handlers
+**Vulnerability:** Global error handlers (`window.onerror`, `unhandledrejection`) in `src/main.tsx` and `index.html` were using `innerHTML` to display error messages and stack traces to the user directly on the page, leading to potential DOM-based XSS if user-controlled input ended up in an error object or stack trace.
+**Learning:** Even benign-looking debug or error output can introduce XSS if rendered via `innerHTML`. Stack traces and error messages can sometimes contain user-supplied payloads (e.g. URI components or database errors) which get executed when injected into the DOM.
+**Prevention:** Avoid using `innerHTML` with unsanitized data, especially in top-level or global catch-all handlers. Always prefer safe DOM APIs like `document.createElement`, `innerText`, and `appendChild` to render content safely, or use text nodes instead.
