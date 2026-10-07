@@ -1,0 +1,4 @@
+## 2025-02-27 - DOM-based XSS Prevention in Global Error Handlers
+**Vulnerability:** Use of `innerHTML` in global error handlers (`window.onerror`, `window.addEventListener('unhandledrejection')`) to display unhandled error messages, which can expose the application to DOM-based XSS if the error details contain user-controlled, unsanitized data.
+**Learning:** Even benign-looking debug or error output tools can become vectors for injection attacks if they directly inject text into the DOM via `innerHTML` without sanitization. In a client-side context, an attacker who controls part of the stack trace or error reason can execute arbitrary JavaScript.
+**Prevention:** Avoid `innerHTML`. Always prefer safe DOM traversal and manipulation APIs such as `document.createElement()`, `textContent` (or `innerText`), and `appendChild()` to securely render dynamic or unknown content to the DOM.
