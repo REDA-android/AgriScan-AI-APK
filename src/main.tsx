@@ -30,10 +30,23 @@ window.onerror = function(message, source, lineno, colno, error) {
   errorDiv.style.zIndex = '999999';
   errorDiv.style.padding = '20px';
   errorDiv.style.overflow = 'auto';
-  errorDiv.innerHTML = '<h3>App Crash</h3>' + 
-      '<p>Message: ' + message + '</p>' +
-      '<p>Source: ' + source + ':' + lineno + ':' + colno + '</p>' +
-      '<pre>' + (error && error.stack ? error.stack : '') + '</pre>';
+
+  const heading = document.createElement('h3');
+  heading.innerText = 'App Crash';
+  errorDiv.appendChild(heading);
+
+  const msgP = document.createElement('p');
+  msgP.innerText = 'Message: ' + message;
+  errorDiv.appendChild(msgP);
+
+  const sourceP = document.createElement('p');
+  sourceP.innerText = 'Source: ' + source + ':' + lineno + ':' + colno;
+  errorDiv.appendChild(sourceP);
+
+  const pre = document.createElement('pre');
+  pre.innerText = (error && error.stack ? error.stack : '');
+  errorDiv.appendChild(pre);
+
   document.body.appendChild(errorDiv);
 };
 
@@ -63,9 +76,19 @@ window.addEventListener('unhandledrejection', function(event) {
   errorDiv.style.zIndex = '999999';
   errorDiv.style.padding = '20px';
   errorDiv.style.border = '2px solid red';
-  errorDiv.innerHTML = '<h3>Unhandled Promise Rejection</h3>' + 
-      '<p>Reason: ' + event.reason + '</p>' +
-      '<pre>' + (event.reason && event.reason.stack ? event.reason.stack : '') + '</pre>';
+
+  const heading = document.createElement('h3');
+  heading.innerText = 'Unhandled Promise Rejection';
+  errorDiv.appendChild(heading);
+
+  const msgP = document.createElement('p');
+  msgP.innerText = 'Reason: ' + event.reason;
+  errorDiv.appendChild(msgP);
+
+  const pre = document.createElement('pre');
+  pre.innerText = (event.reason && event.reason.stack ? event.reason.stack : '');
+  errorDiv.appendChild(pre);
+
   document.body.appendChild(errorDiv);
 });
 
