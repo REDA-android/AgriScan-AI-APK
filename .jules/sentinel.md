@@ -1,0 +1,4 @@
+## 2024-06-25 - [DOM-based XSS in Global Error Handlers]
+**Vulnerability:** Used `innerHTML` to display potentially unsanitized error messages and stack traces in global `window.onerror` and `unhandledrejection` handlers. This allows attackers to inject malicious scripts into the DOM if they can control the error message content.
+**Learning:** Even diagnostic or debugging code (like global error boundaries) must sanitize inputs. `innerHTML` should never be used with user-influenced data (like exception messages which might contain user inputs that caused the exception).
+**Prevention:** Always use safe DOM APIs like `document.createElement`, `innerText`, `textContent`, and `appendChild` when programmatically constructing UI that includes dynamic text, rather than relying on HTML string concatenation.

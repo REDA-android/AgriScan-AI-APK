@@ -45,10 +45,19 @@
         errorDiv.style.zIndex = '999999';
         errorDiv.style.padding = '20px';
         errorDiv.style.overflow = 'auto';
-        errorDiv.innerHTML = '<h3>Initial App Crash</h3>' + 
-             '<p>Message: ' + message + '</p>' +
-            '<p>Source: ' + source + ':' + lineno + ':' + colno + '</p>' +
-            '<pre>' + (error && error.stack ? error.stack : '') + '</pre>';
+        var title = document.createElement('h3');
+        title.innerText = 'Initial App Crash';
+        var msgP = document.createElement('p');
+        msgP.innerText = 'Message: ' + message;
+        var srcP = document.createElement('p');
+        srcP.innerText = 'Source: ' + source + ':' + lineno + ':' + colno;
+        var stackPre = document.createElement('pre');
+        stackPre.innerText = (error && error.stack ? error.stack : '');
+
+        errorDiv.appendChild(title);
+        errorDiv.appendChild(msgP);
+        errorDiv.appendChild(srcP);
+        errorDiv.appendChild(stackPre);
         document.body.appendChild(errorDiv);
       };
       window.addEventListener('unhandledrejection', function(event) {
@@ -64,8 +73,13 @@
         errorDiv.style.color = 'red';
         errorDiv.style.zIndex = '999999';
         errorDiv.style.padding = '20px';
-        errorDiv.innerHTML = '<h3>Initial Unhandled Rejection</h3>' + 
-             '<p>Reason: ' + reasonStr + '</p>';
+        var title = document.createElement('h3');
+        title.innerText = 'Initial Unhandled Rejection';
+        var msgP = document.createElement('p');
+        msgP.innerText = 'Reason: ' + reasonStr;
+
+        errorDiv.appendChild(title);
+        errorDiv.appendChild(msgP);
         document.body.appendChild(errorDiv);
       });
     </script>
