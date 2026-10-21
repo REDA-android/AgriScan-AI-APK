@@ -1,0 +1,4 @@
+## 2024-10-21 - [DOM-based XSS in Global Error Handlers]
+**Vulnerability:** Global error handlers `window.onerror` and `window.addEventListener('unhandledrejection')` in `src/main.tsx` used `innerHTML` to display error messages. This can lead to a DOM-based Cross-Site Scripting (XSS) vulnerability if the error message, source, or stack trace contains unsanitized, user-controllable input.
+**Learning:** Even debugging or error-display code that runs purely on the client side needs to be secured against injection attacks, particularly when dealing with potentially dynamic content in errors.
+**Prevention:** Avoid using `innerHTML` with any dynamic string. Always use safe DOM APIs like `document.createElement`, `.textContent`, and `appendChild` when rendering potentially unsafe data to the DOM.
